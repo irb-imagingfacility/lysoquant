@@ -2,7 +2,7 @@
 
 This is the source of the LysoQuant plugin for Fiji.
 
-This plugin requires the [U-Net Segmentation][https://github.com/lmb-freiburg/Unet-Segmentation] plugin and a connection to a Linux workstation (can be the local computer) running a special variant of caffe (caffe_unet).
+This plugin requires the [U-Net Segmentation](https://github.com/lmb-freiburg/Unet-Segmentation) plugin and a connection to a Linux workstation (can be the local computer) running a special variant of caffe (caffe_unet).
 
 The weight file for the U-Net network can be found in the releases
 
