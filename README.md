@@ -22,3 +22,13 @@ The weight file for the U-Net network can be found in the releases
 1. Select a ROI corresponding to a cell to analyze. If no ROI is selected, all the image will be analyzed
 1. Run Analyze > LysoQuant. The user will be prompted with a selection for the channels. In this case, set 2 for the protein and 3 for the lysosomes
 1. If the option for single values is unchecked, the image will be segmented and analyzed and summary values will be presented. If checked, also single values for each lysosome will be presented.
+
+If you use this, please cite
+
+**Deep learning approach for quantification of organelles and misfolded polypeptides delivery within degradative compartments**
+
+Diego Morone, Alessandro Marazza, Timothy J. Bergmann, and Maurizio Molinari
+
+_Molecular Biology of the Cell_ 2020 
+
+doi: [https://doi.org/10.1091/mbc.E20-04-0269](https://doi.org/10.1091/mbc.E20-04-0269)
