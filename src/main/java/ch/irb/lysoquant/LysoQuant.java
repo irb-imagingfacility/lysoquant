@@ -31,7 +31,7 @@
  *
  **************************************************************************/
 
-package ch.irb.lysosome_counter;
+package ch.irb.lysoquant;
 
 import ij.IJ;
 import ij.ImageJ;
@@ -58,12 +58,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * U-Net Segmentation of Positive and Negative lysosomes.
- * Takes COLOR_RGB images.
+ * LysoQuant deep learning segmentation of endolysosomes.
+ * Takes TIFF multichannel images (usually through Bioformats).
  *
  * @author Diego Morone
  */
-public class Lysosome_Counter implements PlugIn, Measurements {
+public class LysoQuant implements PlugIn, Measurements {
         int ch_lyso;
         int ch_protein;
         boolean display_values;
@@ -147,7 +147,7 @@ public class Lysosome_Counter implements PlugIn, Measurements {
                     try {
                         SegmentationJob.processHyperStack(unetp);
                     } catch (InterruptedException ex) {
-                        Logger.getLogger(Lysosome_Counter.class.getName()).log(Level.SEVERE, null, ex);
+                        Logger.getLogger(LysoQuant.class.getName()).log(Level.SEVERE, null, ex);
                     }
 
                     ImagePlus segmented = IJ.getImage();
@@ -166,7 +166,7 @@ public class Lysosome_Counter implements PlugIn, Measurements {
                     try {
                         SegmentationJob.processHyperStack(unetp);
                     } catch (InterruptedException ex) {
-                        Logger.getLogger(Lysosome_Counter.class.getName()).log(Level.SEVERE, null, ex);
+                        Logger.getLogger(LysoQuant.class.getName()).log(Level.SEVERE, null, ex);
                     }
 
                     ImagePlus segmented = IJ.getImage();
@@ -201,7 +201,24 @@ public class Lysosome_Counter implements PlugIn, Measurements {
             }
         }     
        
-        
+        private void count(ImagePlus image, String newImage, int objClass, String size, boolean display_values) {
+            //IJ.run("Set Measurements...", "display redirect=None decimal=3");
+            ImageProcessor ip = image.getProcessor();
+            Calibration cal = image.getCalibration();
+            ImageProcessor ip2 = ip.duplicate();
+            ImagePlus tmp = new ImagePlus(newImage, ip2);
+            tmp.setCalibration(cal);
+            ip2.setThreshold((double) objClass, (double) objClass, ImageProcessor.NO_LUT_UPDATE);
+            String options;
+            if (display_values) {
+                options = "size="+size+"-Infinity display show=Nothing summarize";
+            } else {
+                options = "size="+size+"-Infinity show=Nothing summarize";
+            }
+            IJ.run(tmp, "Analyze Particles...", options);
+            
+        }
+
         private void count(ImagePlus image, Roi roi, String newImage, int objClass, String size, boolean display_values) {
             //IJ.run("Set Measurements...", "display redirect=None decimal=3");
             ImageProcessor ip = image.getProcessor();
@@ -219,33 +236,6 @@ public class Lysosome_Counter implements PlugIn, Measurements {
             }
             IJ.run(tmp, "Analyze Particles...", options);
             
-        } 
-        
-        private void count(ImagePlus image, String newImage, int objClass, ImagePlus originalupscaled, int channel, int size, boolean display_values) {
-            //IJ.run("Set Measurements...", "display redirect=None decimal=3");
-            int measurements = Analyzer.getMeasurements();
-            ImageProcessor ip = image.getProcessor();
-            Calibration cal = image.getCalibration();
-            ImageProcessor ip2 = ip.duplicate();
-            ImagePlus tmp = new ImagePlus(newImage, ip2);
-            tmp.setCalibration(cal);
-            ip2.setThreshold((double) objClass, (double) objClass, ImageProcessor.NO_LUT_UPDATE);
-            int options;
-            int maxSize = Integer.MAX_VALUE;
-            options = ParticleAnalyzer.SHOW_PROGRESS;
-            options += ParticleAnalyzer.SHOW_NONE;
-            if (display_values) {
-                options += ParticleAnalyzer.SHOW_RESULTS;
-            }
-            ResultsTable rt = new ResultsTable();
-            ParticleAnalyzer pa = new ParticleAnalyzer(options, measurements, rt, size, maxSize);
-            if (!pa.analyze(ip2))
-                return;
-            float[] a = rt.getColumn(ResultsTable.AREA);
-            if (a==null)
-                return;
-            rt.addValue("Mean", stats.mean);
-            rt.show("Results");
         } 
         
         private ImagePlus make_rgb(int ch_protein, int ch_lyso, ImagePlus imp) {
@@ -295,7 +285,7 @@ public class Lysosome_Counter implements PlugIn, Measurements {
 	 */
 	public static void main(String[] args) {
 		// set the plugins.dir property to make the plugin appear in the Plugins menu
-		Class<?> clazz = Lysosome_Counter.class;
+		Class<?> clazz = LysoQuant.class;
 		String url = clazz.getResource("/" + clazz.getName().replace('.', '/') + ".class").toString();
 		String pluginsDir = url.substring("file:".length(), url.length() - clazz.getName().length() - ".class".length());
 		System.setProperty("plugins.dir", pluginsDir);
@@ -304,7 +294,7 @@ public class Lysosome_Counter implements PlugIn, Measurements {
 		new ImageJ();
 
 		// open the Clown sample
-		ImagePlus image = IJ.openImage("~/NetBeansProjects/mef.tif");
+		ImagePlus image = IJ.openImage("~/.lysoquant/mef.tif");
 		image.show();
 
 		// run the plugin

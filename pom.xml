@@ -13,12 +13,12 @@
 	</parent>
 
 	<groupId>ch.irb</groupId>
-	<artifactId>Lysosome_Counter</artifactId>
-	<version>0.6.1</version>
+	<artifactId>LysoQuant</artifactId>
+	<version>0.6.2</version>
 
-	<name>Lysosome Counter</name>
-	<description>Positive and Negative Lysosome Counter implemented with U-Net machine learned segmentation.</description>
-	<url>http://mycompany.com/imagej/process-pixels/</url>
+	<name>LysoQuant</name>
+	<description>LysoQuant deep learning segmentation of endolysosomes.</description>
+	<url>https://www.irb.usi.ch/lysoquant/</url>
 	<inceptionYear>2019</inceptionYear>
 	<organization>
 		<name>Institute for Research in Biomedicine</name>
@@ -26,16 +26,16 @@
 	</organization>
 	<licenses>
 		<license>
-			<name>Simplified BSD License</name>
+			<name>GNU GENERAL PUBLIC LICENSE v3</name>
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
 
 	<developers>
 		<developer>
-			<id>ctrueden</id>
-			<name>Curtis Rueden</name>
-			<url>https://imagej.net/User:Rueden</url>
+			<id>dmorone</id>
+			<name>Diego Morone</name>
+			<url>https://www.irb.usi.ch/irb-people/morone-diego/?id=8939</url>
 			<roles>
 				<role>lead</role>
 				<role>developer</role>
@@ -48,10 +48,25 @@
 	</developers>
 	<contributors>
 		<contributor>
-			<name>Johannes Schindelin</name>
-			<url>https://imagej.net/User:Schindelin</url>
-			<roles><role>founder</role></roles>
-			<properties><id>dscho</id></properties>
+			<name>Alessandro Marazza</name>
+			<roles>
+				<role>debugger</role>
+				<role>reviewer</role>
+			</roles>
+		</contributor>
+		<contributor>
+			<name>Timothy J. Bergmann</name>
+			<roles>
+				<role>debugger</role>
+				<role>reviewer</role>
+			</roles>
+		</contributor>
+		<contributor>
+			<name>Maurizio Molinari</name>
+			<roles>
+				<role>lead</role>
+				<role>reviewer</role>
+			</roles>
 		</contributor>
 	</contributors>
 
@@ -63,14 +78,14 @@
 	</mailingLists>
 
 	<scm>
-		<connection>scm:git:git://github.com/imagej/example-legacy-plugin</connection>
-		<developerConnection>scm:git:git@github.com:imagej/example-legacy-plugin</developerConnection>
+		<connection>scm:git:git://github.com/irb-imagingfacility/lysoquant.git</connection>
+		<developerConnection>scm:git:git@github.com:irb-imagingfacility/lysoquant.git</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/imagej/example-legacy-plugin</url>
+		<url>https://github.com/irb-imagingfacility/lysoquant.git</url>
 	</scm>
 	<issueManagement>
 		<system>GitHub Issues</system>
-		<url>https://github.com/imagej/example-legacy-plugin/issues</url>
+		<url>https://github.com/irb-imagingfacility/lysoquant/issues</url>
 	</issueManagement>
 	<ciManagement>
 		<system>None</system>
@@ -97,8 +112,8 @@
     </dependencies>
     <properties>
 		<package-name>ch.irb</package-name>
-		<main-class>ch.irb.Lysosome_Counter</main-class>
-		<license.licenseName>bsd_2</license.licenseName>
+		<main-class>ch.irb.LysoQuant</main-class>
+		<license.licenseName>gpl_3</license.licenseName>
 		<license.copyrightOwners>Institute for Research in Biomedicine</license.copyrightOwners>
 	</properties>
 </project>

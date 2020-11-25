@@ -29,6 +29,6 @@ If you use this, please cite
 
 Diego Morone, Alessandro Marazza, Timothy J. Bergmann, and Maurizio Molinari
 
-_Molecular Biology of the Cell_ 2020 
+_Molecular Biology of the Cell_ 2020
 
 doi: [https://doi.org/10.1091/mbc.E20-04-0269](https://doi.org/10.1091/mbc.E20-04-0269)
