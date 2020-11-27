@@ -14,7 +14,7 @@
 
 	<groupId>ch.irb</groupId>
 	<artifactId>LysoQuant</artifactId>
-	<version>0.7.0</version>
+	<version>1.0.0</version>
 
 	<name>LysoQuant</name>
 	<description>LysoQuant deep learning segmentation of endolysosomes.</description>
@@ -63,6 +63,7 @@
 		</contributor>
 		<contributor>
 			<name>Maurizio Molinari</name>
+			<url>https://www.irb.usi.ch/irb-people/molinari-maurizio/?id=8981</url>
 			<roles>
 				<role>lead</role>
 				<role>reviewer</role>
