@@ -48,6 +48,7 @@ import de.unifreiburg.unet.*;
 import ij.measure.Calibration;
 import ij.measure.Measurements;
 import ij.measure.ResultsTable;
+import ij.plugin.filter.Analyzer;
 import ij.plugin.filter.ParticleAnalyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
@@ -223,26 +224,18 @@ public class LysoQuant implements PlugIn, Measurements {
                         ResultsTable table = tw.getTextPanel().getResultsTable();
                         if (table!= null) {
                             totals = table;
-                            totals.incrementCounter();
-                            totals.addLabel(image.getTitle()+"-"+roiname);
-                            totals.addValue("Loaded", totalpos);
-                            totals.addValue("Empty", totalneg);
-                            totals.addValue("Ratio", (double)totalpos/(double)(totalpos+totalneg));
-                            totals.addValue("Lysosome Ch", ch_lyso);
-                            totals.addValue("Protein Ch", ch_protein);
-                            totals.show("LysoQuant");
                         }
                     } else {
                             totals = new ResultsTable();
-                            totals.incrementCounter();
-                            totals.addLabel(image.getTitle()+"-"+roiname);
-                            totals.addValue("Loaded", totalpos);
-                            totals.addValue("Empty", totalneg);
-                            totals.addValue("Ratio", (double)totalpos/(double)(totalpos+totalneg));
-                            totals.addValue("Lysosome Ch", ch_lyso);
-                            totals.addValue("Protein Ch", ch_protein);
-                            totals.show("LysoQuant");
                     }
+                    totals.incrementCounter();
+                    totals.addLabel(image.getTitle()+"-"+roiname);
+                    totals.addValue("Loaded", totalpos);
+                    totals.addValue("Empty", totalneg);
+                    totals.addValue("Ratio", (double)totalpos/(double)(totalpos+totalneg));
+                    totals.addValue("Lysosome Ch", ch_lyso);
+                    totals.addValue("Protein Ch", ch_protein);
+                    totals.show("LysoQuant");
                 }
                     
             }
@@ -254,13 +247,24 @@ public class LysoQuant implements PlugIn, Measurements {
                         int objClass, String objName, double minSize, boolean display_values) {
         int width = raw.getWidth();
         int swidth = segmented.getWidth();
-        double scale = (double) swidth/ (double) width;
         double invscale = (double) width/ (double) swidth;
 
         int total = 0;
 
         // Constructors
         RoiManager countman = new RoiManager(true); // Hidden roimanager for this task
+        ResultsTable singles = null;
+        Frame frame = WindowManager.getFrame("Results");
+        if (frame!=null && (frame instanceof TextWindow)) {
+            TextWindow tw = (TextWindow)frame;
+            ResultsTable table = tw.getTextPanel().getResultsTable();
+            if (table!= null) {
+                singles = table;
+            }
+        } else {
+                singles = new ResultsTable();
+        }
+        Analyzer measure = new Analyzer(raw, singles);
 
         // Get segmented image and apply binary threshold for positives or negatives
         ImageProcessor ip = segmented.getProcessor();
@@ -298,7 +302,12 @@ public class LysoQuant implements PlugIn, Measurements {
                     tmpscaled.setLocation(new_x, new_y);
                     tmpscaled.setName(objName+"-"+String.valueOf(counter));
                     raw.setRoi(tmpscaled);
-                    IJ.run(raw, "Measure", "");
+                    measure.measure();
+                    singles.addValue("Lysosome Type", objName);
+                    singles.addValue("Lysosome Channel", ch_lyso);
+                    singles.addValue("Protein Channel", ch_protein);
+                    singles.addValue("Measurement Channel", channel);
+                    singles.show("Results");
                     counter++;
                 }
             }
@@ -312,13 +321,24 @@ public class LysoQuant implements PlugIn, Measurements {
                         int objClass, String objName, double minSize, boolean display_values) {
         int width = raw.getWidth();
         int swidth = segmented.getWidth();
-        double scale = (double) swidth/ (double) width;
         double invscale = (double) width/ (double) swidth;
 
         int total = 0;
 
         // Constructors
         RoiManager countman = new RoiManager(true); // Hidden roimanager for this task
+        ResultsTable singles = null;
+        Frame frame = WindowManager.getFrame("Results");
+        if (frame!=null && (frame instanceof TextWindow)) {
+            TextWindow tw = (TextWindow)frame;
+            ResultsTable table = tw.getTextPanel().getResultsTable();
+            if (table!= null) {
+                singles = table;
+            }
+        } else {
+                singles = new ResultsTable();
+        }
+        Analyzer measure = new Analyzer(raw, singles);
 
         // Get segmented image and apply binary threshold for positives or negatives
         ImageProcessor ip = segmented.getProcessor();
@@ -358,7 +378,13 @@ public class LysoQuant implements PlugIn, Measurements {
                     tmpscaled.setLocation(new_x, new_y);
                     tmpscaled.setName(roiname+"-"+objName+"-"+String.valueOf(counter));
                     raw.setRoi(tmpscaled);
-                    IJ.run(raw, "Measure", "");
+                    measure.measure();
+                    singles.addValue("ROI", roiname);
+                    singles.addValue("Lysosome Type", objName);
+                    singles.addValue("Lysosome Channel", ch_lyso);
+                    singles.addValue("Protein Channel", ch_protein);
+                    singles.addValue("Measurement Channel", channel);
+                    singles.show("Results");
                     counter++;
                 }
             }
@@ -387,7 +413,7 @@ public class LysoQuant implements PlugIn, Measurements {
 
 		gd.addNumericField("Lysosome Channel", Integer.parseInt(Prefs.get("lysoquant.display_lyso", "2")), 0);
         gd.addNumericField("Protein Channel", Integer.parseInt(Prefs.get("lysoquant.display_protein", "3")), 0);
-        boolean defaultTick = Boolean.getBoolean(Prefs.get("lysoquant.display_values", "false"));
+        boolean defaultTick = Boolean.parseBoolean(Prefs.get("lysoquant.display_values", "false"));
         gd.addCheckbox("Show single values", defaultTick);
         int oldfirstC = (int)Prefs.get("lysoquant.display_firstC", 1);
         int oldlastC = (int)Prefs.get("lysoquant.display_lastC", nChannels);
