@@ -33,8 +33,6 @@
 
 package ch.irb.lysoquant;
 
-import java.rmi.server.ServerCloneException;
-
 import ij.*;
 import ij.gui.*;
 import ij.Prefs;
@@ -47,7 +45,7 @@ import ij.plugin.PlugIn;
  */
 public class LysoQuantSettings implements PlugIn {
 
-    public final String VERSION="1.0.0";
+    public final String VERSION="1.0.1";
 
     @Override
     public void run(String arg) {
@@ -73,6 +71,7 @@ public class LysoQuantSettings implements PlugIn {
         String modelfolder;
         String weights;
         String tilesize;
+        Boolean display_warning;
 
         // Retrieve stored prefs
         if (Prefs.get("lysoquant.username", "") != "") {
@@ -143,6 +142,12 @@ public class LysoQuantSettings implements PlugIn {
             processfolder = Prefs.get("unet.processfolder", "");
         }
 
+        if (Prefs.get("lysoquant.display_warning", "") != "") {
+            display_warning = Boolean.parseBoolean(Prefs.get("lysoquant.display_warning", ""));
+        } else {
+            display_warning = true;
+        }
+
         String minsize = Prefs.get("lysoquant.minsize", "0.53");
 
         // Create interface
@@ -159,6 +164,7 @@ public class LysoQuantSettings implements PlugIn {
         gd.addStringField("U-Net tile size: ", tilesize);
         gd.addStringField("U-Net process folder: ", processfolder, 50);
         gd.addStringField("Filter min size: ", minsize);
+        gd.addCheckbox("Display 3D warning", display_warning);
 
 		gd.showDialog();
 		if (gd.wasCanceled())
@@ -177,6 +183,7 @@ public class LysoQuantSettings implements PlugIn {
         tilesize = gd.getNextString();
         processfolder = gd.getNextString();
         minsize = gd.getNextString();
+        display_warning = gd.getNextBoolean();
 
         // Store new prefs
         Prefs.set("lysoquant.username", username);
@@ -191,6 +198,7 @@ public class LysoQuantSettings implements PlugIn {
         Prefs.set("lysoquant.server", server);
         Prefs.set("lysoquant.port", port);
         Prefs.set("lysoquant.processfolder", processfolder);
+        Prefs.set("lysoquant.display_warning", Boolean.toString(display_warning));
 
         return true;
     }
