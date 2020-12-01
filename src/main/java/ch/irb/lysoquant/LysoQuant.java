@@ -36,8 +36,8 @@ package ch.irb.lysoquant;
 import java.awt.*;
 import ij.*;
 import ij.text.*;
-import ij.gui.GenericDialog;
-import ij.gui.Roi;
+import ij.gui.*;
+import ij.measure.*;
 import ij.Prefs;
 import ij.plugin.ChannelSplitter;
 import ij.plugin.PlugIn;
@@ -45,16 +45,12 @@ import ij.plugin.RoiScaler;
 import ij.plugin.RGBStackConverter;
 import ij.plugin.RGBStackMerge;
 import de.unifreiburg.unet.*;
-import ij.measure.Calibration;
-import ij.measure.Measurements;
-import ij.measure.ResultsTable;
 import ij.plugin.filter.Analyzer;
 import ij.plugin.filter.ParticleAnalyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
 import static java.lang.Math.floor;
 import ij.util.Tools;
-import ij.plugin.HyperStackConverter;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -72,13 +68,13 @@ public class LysoQuant implements PlugIn, Measurements {
     int ch_protein;
     int firstC = 1;
     int lastC;
-    int nChannels;
     int firstZ = 1;
     int lastZ;
     int nSlices;
     int firstT = 1;
     int lastT;
     int nFrames;
+    int nChannels;
     boolean display_values;
     boolean display_warning = Boolean.parseBoolean(Prefs.get("lysoquant.display_warning", "true"));
     String positives = "loaded";
@@ -104,7 +100,7 @@ public class LysoQuant implements PlugIn, Measurements {
     String outputsoftmaxscores = "false";
         
     @Override
-    public void run(String arg) {
+	public void run(String arg) {
 
         ImagePlus image = IJ.getImage();
 
@@ -165,7 +161,8 @@ public class LysoQuant implements PlugIn, Measurements {
             unetp += outputscores;
             unetp += ",outputSoftmaxScores=";
             unetp += outputsoftmaxscores;
-
+    
+            
             ImagePlus rgb = make_rgb(ch_protein, ch_lyso, image);
             rgb.show();
 
@@ -182,10 +179,7 @@ public class LysoQuant implements PlugIn, Measurements {
                     Logger.getLogger(LysoQuant.class.getName()).log(Level.SEVERE, null, ex);
                 }
 
-                // FIXME: hyperstack conversion
                 ImagePlus segmented = IJ.getImage();
-                if (nFrames > 1 || nSlices > 1)
-                    segmented = HyperStackConverter.toHyperStack(segmented, 1, nSlices, nFrames);
 
                 segmented.setTitle("LQ_"+title);
 
@@ -195,15 +189,15 @@ public class LysoQuant implements PlugIn, Measurements {
                 ResultsTable totals = null;
                 Frame frame = WindowManager.getFrame("LysoQuant");
                 if (frame!=null && (frame instanceof TextWindow)) {
-                TextWindow tw = (TextWindow)frame;
-                ResultsTable table = tw.getTextPanel().getResultsTable();
+                    TextWindow tw = (TextWindow)frame;
+                    ResultsTable table = tw.getTextPanel().getResultsTable();
                     if (table!= null) {
                         totals = table;
                     } else {
                         totals = new ResultsTable();
                     }
                 } else {
-                    totals = new ResultsTable();
+                        totals = new ResultsTable();
                 }
 
                 totals.incrementCounter();
@@ -225,11 +219,8 @@ public class LysoQuant implements PlugIn, Measurements {
                     Logger.getLogger(LysoQuant.class.getName()).log(Level.SEVERE, null, ex);
                 }
 
-                // FIXME: hyperstack conversion
                 ImagePlus segmented = IJ.getImage();
-                if (nFrames > 1 || nSlices > 1)
-                    segmented = HyperStackConverter.toHyperStack(segmented, 1, nSlices, nFrames);
-
+                
                 segmented.setTitle("LQ_"+title);
 
                 int width = image.getWidth();
@@ -240,17 +231,17 @@ public class LysoQuant implements PlugIn, Measurements {
                 for (Roi roi : rois){
                     int pan_x = roi.getBounds().x;
                     int pan_y = roi.getBounds().y;
-                        
+                    
                     int new_x = (int) floor(pan_x * scale);
                     int new_y = (int) floor(pan_y * scale);
-                        
+                    
                     Roi scaled = RoiScaler.scale(roi, scale, scale, false);
                     scaled.setLocation(new_x, new_y);
                     String roiname = roi.getName();
 
                     int totalpos = count(segmented, image, scaled, firstC, lastC, pos, positives, minSize, display_values);
                     int totalneg = count(segmented, image, scaled, firstC, lastC, neg, negatives, minSize, display_values);
-        
+    
                     ResultsTable totals = null;
                     Frame frame = WindowManager.getFrame("LysoQuant");
                     if (frame!=null && (frame instanceof TextWindow)) {
@@ -262,11 +253,10 @@ public class LysoQuant implements PlugIn, Measurements {
                             totals = new ResultsTable();
                         }
                     } else {
-                        totals = new ResultsTable();
+                            totals = new ResultsTable();
                     }
-                
                     totals.incrementCounter();
-                    totals.addLabel(title+"-"+roiname);
+                    totals.addLabel(image.getTitle()+"-"+roiname);
                     totals.addValue("Loaded", totalpos);
                     totals.addValue("Empty", totalneg);
                     totals.addValue("Ratio", (double)totalpos/(double)(totalpos+totalneg));
@@ -274,9 +264,11 @@ public class LysoQuant implements PlugIn, Measurements {
                     totals.addValue("Protein Ch", ch_protein);
                     totals.show("LysoQuant");
                 }
+                    
             }
         }
-    }
+
+    }     
     
     /**
      * Take the segmented image and count the number or objects in selected objClass
@@ -332,7 +324,7 @@ public class LysoQuant implements PlugIn, Measurements {
         ParticleAnalyzer.setRoiManager(countman); 
         int measurements = 0;
         ParticleAnalyzer pa = new ParticleAnalyzer(options, measurements, new ResultsTable(), minSize, Double.MAX_VALUE, 0.0, 1.0);
-        
+
         for (int t=1; t<= nFrames; t++) {
             for (int z=1; z <= nSlices; z++) {
                 int index = t*z;
@@ -346,12 +338,28 @@ public class LysoQuant implements PlugIn, Measurements {
         countman.runCommand("Deselect");
         countman.runCommand("Delete");
 
-        // FIXME: problem with overlays
-        int counter = 1;
         if (display_values) {
-            for (int c = firstC; c <= lastC; c++) {
-                raw.setC(c); 
+            for (int channel = firstC; channel <= lastC; channel++) {
+                raw.setC(channel);
+
+                int counter = 1;
                 for (Roi tmproi: tmprois) {
+                    Overlay overlay = raw.getOverlay();
+                    if (overlay==null)
+                        overlay = new Overlay();
+                    
+                    if (!overlay.getDrawLabels())
+                        overlay.drawLabels(true);
+            
+                    if (!overlay.getDrawNames())
+                        overlay.drawNames(true);
+                        
+                    overlay.setLabelColor(Color.white);
+                    overlay.drawBackgrounds(true);
+
+                    raw.setT(tmproi.getTPosition());
+                    raw.setZ(tmproi.getZPosition());
+
                     int pan_x = tmproi.getBounds().x;
                     int pan_y = tmproi.getBounds().y;
                     int new_x = (int) floor(pan_x * invscale);
@@ -359,14 +367,16 @@ public class LysoQuant implements PlugIn, Measurements {
                     
                     Roi tmpscaled = RoiScaler.scale(tmproi, invscale, invscale, false);
                     tmpscaled.setLocation(new_x, new_y);
-                    tmpscaled.setName(objName+"-"+counter);
+                    tmpscaled.setName(objName+"-"+String.valueOf(counter));
                     raw.setRoi(tmpscaled);
                     measure.measure();
                     singles.addValue("Lysosome Type", objName);
                     singles.addValue("Lysosome Channel", ch_lyso);
                     singles.addValue("Protein Channel", ch_protein);
-                    singles.addValue("Measurement Channel", c);
+                    singles.addValue("Measurement Channel", channel);
                     singles.show("Results");
+                    overlay.add(tmpscaled);
+                    raw.setOverlay(overlay);
                     counter++;
                 }
             }
@@ -423,7 +433,7 @@ public class LysoQuant implements PlugIn, Measurements {
         ParticleAnalyzer.setRoiManager(countman); 
         int measurements = 0;
         ParticleAnalyzer pa = new ParticleAnalyzer(options, measurements, new ResultsTable(), minSize, Double.MAX_VALUE, 0.0, 1.0);
-        
+
         for (int t=1; t<= nFrames; t++) {
             for (int z=1; z <= nSlices; z++) {
                 int index = t*z;
@@ -431,19 +441,33 @@ public class LysoQuant implements PlugIn, Measurements {
                 pa.analyze(segmented);
             }
         }
-       
+        
         // Now get the ROIS and rescale them to match the raw image
         Roi[] tmprois = countman.getRoisAsArray();
         countman.runCommand("Deselect");
         countman.runCommand("Delete");
 
-        // FIXME: problem with overlays
         if (display_values) {
-            for (Roi tmproi: tmprois) {
-                raw.setZ(tmproi.getZPosition());
-                raw.setT(tmproi.getTPosition());
-                for (int c = firstC; c <= lastC; c++) {
-                    raw.setC(c);
+            for (int channel = firstC; channel <= lastC; channel++) {
+                raw.setC(channel);
+
+                int counter = 1;
+                for (Roi tmproi: tmprois) {
+                    Overlay overlay = raw.getOverlay();
+                    if (overlay==null)
+                        overlay = new Overlay();
+                    
+                    if (!overlay.getDrawLabels())
+                        overlay.drawLabels(true);
+            
+                    if (!overlay.getDrawNames())
+                        overlay.drawNames(true);
+                        
+                    overlay.setLabelColor(Color.white);
+                    overlay.drawBackgrounds(true);
+
+                    raw.setT(tmproi.getTPosition());
+                    raw.setZ(tmproi.getZPosition());
 
                     int pan_x = tmproi.getBounds().x;
                     int pan_y = tmproi.getBounds().y;
@@ -452,16 +476,18 @@ public class LysoQuant implements PlugIn, Measurements {
                     
                     Roi tmpscaled = RoiScaler.scale(tmproi, invscale, invscale, false);
                     tmpscaled.setLocation(new_x, new_y);
-                    String tmpname = tmpscaled.getName();
-                    tmpscaled.setName(tmpname+"-"+objName);
+                    tmpscaled.setName(roiname+"-"+objName+"-"+String.valueOf(counter));
                     raw.setRoi(tmpscaled);
                     measure.measure();
+                    singles.addValue("ROI", roiname);
                     singles.addValue("Lysosome Type", objName);
                     singles.addValue("Lysosome Channel", ch_lyso);
                     singles.addValue("Protein Channel", ch_protein);
-                    singles.addValue("Measurement Channel", c);
-                    singles.addValue("ROI", roiname);
+                    singles.addValue("Measurement Channel", channel);
                     singles.show("Results");
+                    overlay.add(tmpscaled);
+                    raw.setOverlay(overlay);
+                    counter++;
                 }
             }
         }
@@ -469,6 +495,7 @@ public class LysoQuant implements PlugIn, Measurements {
         total = tmprois.length;
         return total;
     }
+
 
     /**
      * Pre-processing step. Take multichannel TIFF image and convert it to RGB
@@ -598,21 +625,21 @@ public class LysoQuant implements PlugIn, Measurements {
      *
      * @param args unused
      */
-    public static void main(String[] args) {
-        // set the plugins.dir property to make the plugin appear in the Plugins menu
-        Class<?> clazz = LysoQuant.class;
-        String url = clazz.getResource("/" + clazz.getName().replace('.', '/') + ".class").toString();
-        String pluginsDir = url.substring("file:".length(), url.length() - clazz.getName().length() - ".class".length());
-        System.setProperty("plugins.dir", pluginsDir);
-        
-        // start ImageJ
-        new ImageJ();
+    	public static void main(String[] args) {
+		// set the plugins.dir property to make the plugin appear in the Plugins menu
+		Class<?> clazz = LysoQuant.class;
+		String url = clazz.getResource("/" + clazz.getName().replace('.', '/') + ".class").toString();
+		String pluginsDir = url.substring("file:".length(), url.length() - clazz.getName().length() - ".class".length());
+		System.setProperty("plugins.dir", pluginsDir);
 
-        // open the Clown sample
-        ImagePlus image = IJ.openImage("~/.lysoquant/mef.tif");
-        image.show();
-        
-        // run the plugin
-        IJ.runPlugIn(clazz.getName(), "");
-    }
+		// start ImageJ
+		new ImageJ();
+
+		// open the Clown sample
+		ImagePlus image = IJ.openImage("~/.lysoquant/mef.tif");
+		image.show();
+
+		// run the plugin
+		IJ.runPlugIn(clazz.getName(), "");
+	}
 }
