@@ -52,6 +52,9 @@ import ij.process.ImageProcessor;
 import static java.lang.Math.floor;
 import ij.util.Tools;
 
+
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -77,10 +80,7 @@ public class LysoQuant implements PlugIn, Measurements {
     int nChannels;
     boolean display_values;
     boolean display_warning = Boolean.parseBoolean(Prefs.get("lysoquant.display_warning", "true"));
-    String positives = "loaded";
-    int pos = 2;
-    String negatives = "empty";
-    int neg = 1;
+
     double minSize = Double.parseDouble(Prefs.get("lysoquant.minsize", "")); //in microns squared
     String modelname = Prefs.get("lysoquant.model", "");
 
@@ -101,6 +101,9 @@ public class LysoQuant implements PlugIn, Measurements {
         
     @Override
 	public void run(String arg) {
+        HashMap<Integer, String> values = new HashMap<Integer, String>();
+        values.put(1, "Empty");
+        values.put(2, "Loaded");
 
         ImagePlus image = IJ.getImage();
 
@@ -170,7 +173,7 @@ public class LysoQuant implements PlugIn, Measurements {
 
                 if (roiA != null) {
                     rgb.setRoi(roiA);
-                    IJ.run("Clear Outside");
+                    IJ.run("Clear Outside", "stack");
                 }
                 
                 try {
@@ -184,31 +187,8 @@ public class LysoQuant implements PlugIn, Measurements {
                 segmented.setTitle("LQ_"+title);
                 new StackWindow(segmented);
 
-                int totalpos = count(segmented, image, null, firstC, lastC, pos, positives, minSize, display_values);
-                int totalneg = count(segmented, image, null, firstC, lastC, neg, negatives, minSize, display_values);
+                count(segmented, image, null, firstC, lastC, values, minSize, display_values);
 
-                ResultsTable totals = null;
-                Frame frame = WindowManager.getFrame("LysoQuant");
-                if (frame!=null && (frame instanceof TextWindow)) {
-                    TextWindow tw = (TextWindow)frame;
-                    ResultsTable table = tw.getTextPanel().getResultsTable();
-                    if (table!= null) {
-                        totals = table;
-                    } else {
-                        totals = new ResultsTable();
-                    }
-                } else {
-                        totals = new ResultsTable();
-                }
-
-                totals.incrementCounter();
-                totals.addLabel(title);
-                totals.addValue("Loaded", totalpos);
-                totals.addValue("Empty", totalneg);
-                totals.addValue("Ratio", (double)totalpos/(double)(totalpos+totalneg));
-                totals.addValue("Lysosome Ch", ch_lyso);
-                totals.addValue("Protein Ch", ch_protein);
-                totals.show("LysoQuant");
 
             } else {
                 roiman.runCommand("Combine");
@@ -239,38 +219,12 @@ public class LysoQuant implements PlugIn, Measurements {
                     
                     Roi scaled = RoiScaler.scale(roi, scale, scale, false);
                     scaled.setLocation(new_x, new_y);
-                    String roiname = roi.getName();
 
-                    int totalpos = count(segmented, image, scaled, firstC, lastC, pos, positives, minSize, display_values);
-                    int totalneg = count(segmented, image, scaled, firstC, lastC, neg, negatives, minSize, display_values);
+                    count(segmented, image, scaled, firstC, lastC, values, minSize, display_values);
     
-                    ResultsTable totals = null;
-                    Frame frame = WindowManager.getFrame("LysoQuant");
-                    if (frame!=null && (frame instanceof TextWindow)) {
-                        TextWindow tw = (TextWindow)frame;
-                        ResultsTable table = tw.getTextPanel().getResultsTable();
-                        if (table!= null) {
-                            totals = table;
-                        } else {
-                            totals = new ResultsTable();
-                        }
-                    } else {
-                            totals = new ResultsTable();
-                    }
-
-                    totals.incrementCounter();
-                    totals.addLabel(image.getTitle()+"-"+roiname);
-                    totals.addValue("Loaded", totalpos);
-                    totals.addValue("Empty", totalneg);
-                    totals.addValue("Ratio", (double)totalpos/(double)(totalpos+totalneg));
-                    totals.addValue("Lysosome Ch", ch_lyso);
-                    totals.addValue("Protein Ch", ch_protein);
-                    totals.show("LysoQuant");
-                }
-                    
+                }                    
             }
         }
-
     }     
     
     /**
@@ -283,15 +237,15 @@ public class LysoQuant implements PlugIn, Measurements {
      *  @param roi optional parameter to restrict to a specified cell
      *  @param firstC measurement channel
      *  @param lastC measurement channel
-     *  @param objClass the values of output in segmented images. See class variables
+     *  @param values hasthable with segmentation values and names
      *  @param objName their corresponding names. See class variables
      *  @param minSize cutoff for recognizing particles
      *  @param display_values if true measure the value on each lysosome
      *  @return int of total count for objClass
      *  @return table with measurements and info about inputs and image position in hyperstack
      */
-    private int count(ImagePlus segmented, ImagePlus raw, Roi roi, int firstC, int lastC, 
-                        int objClass, String objName, double minSize, boolean display_values) {
+    void count(ImagePlus segmented, ImagePlus raw, Roi roi, int firstC, int lastC, 
+                        HashMap<Integer, String> values, double minSize, boolean display_values) {
 
         int width = raw.getWidth();
         int swidth = segmented.getWidth();
@@ -312,16 +266,9 @@ public class LysoQuant implements PlugIn, Measurements {
         }
         Analyzer measure = new Analyzer(raw, singles);
 
-        // Apply roi
-        if (roi != null)
-            segmented.setRoi(roi);
-
-        // Get segmented image and apply binary threshold for positives or negatives
-        ImageProcessor ip = segmented.getProcessor();
-        Calibration cal = segmented.getCalibration();
-        ip.setThreshold((double) objClass, (double) objClass, ImageProcessor.NO_LUT_UPDATE);
 
         // Get the Rois from the segmented image
+        Calibration cal = segmented.getCalibration();
         double unitSquared = cal.pixelWidth*cal.pixelHeight;
         minSize = minSize / unitSquared; // minsize must be a double in pixel units
         int options = 0;
@@ -334,73 +281,156 @@ public class LysoQuant implements PlugIn, Measurements {
 
         for (int t=1; t<= nFrames; t++) {
             for (int z=1; z <= nSlices; z++) {
-                int index = t*z;
-                segmented.setSliceWithoutUpdate(index);
-                pa.analyze(segmented);
-            }
-        }
-        
-        // Now get the ROIS and rescale them to match the raw image
-        Roi[] tmprois = countman.getRoisAsArray();
-        countman.runCommand("Deselect");
-        countman.runCommand("Delete");
+                segmented.setT(t);
+                segmented.setZ(z);
 
-        if (display_values) {
-            
-            int counter;
-            Overlay overlay = raw.getOverlay();
-
-            if (overlay==null) {
-                overlay = new Overlay();
-                counter = 1;
-            } else {
-                counter = overlay.size()+1;
-            }
-            
-            if (!overlay.getDrawLabels())
-                overlay.drawLabels(true);
-    
-            if (!overlay.getDrawNames())
-                overlay.drawNames(true);
-                
-            overlay.setLabelColor(Color.white);
-            overlay.drawBackgrounds(true);
-
-            for (Roi tmproi: tmprois) {
-                int pan_x = tmproi.getBounds().x;
-                int pan_y = tmproi.getBounds().y;
-                int new_x = (int) floor(pan_x * invscale);
-                int new_y = (int) floor(pan_y * invscale);
-                
-                Roi tmpscaled = RoiScaler.scale(tmproi, invscale, invscale, false);
-                tmpscaled.setLocation(new_x, new_y);
-                tmpscaled.setName(objName+"-"+String.valueOf(counter));
-                tmpscaled.setPosition(1, tmproi.getZPosition(), tmproi.getTPosition());
-
-                raw.setT(tmproi.getTPosition());
-                raw.setZ(tmproi.getZPosition());
-
-                for (int channel = firstC; channel <= lastC; channel++) {
-                    raw.setC(channel);
-                    raw.setRoi(tmpscaled, false);
-                    measure.measure();
-                    singles.addValue("Lysosome Type", objName);
-                    singles.addValue("Lysosome Channel", ch_lyso);
-                    singles.addValue("Protein Channel", ch_protein);
-                    singles.addValue("Measurement Channel", channel);
-                    singles.show("Results");
+                int[] totalvalues = new int[values.size()];
+                for (int i=0; i< values.size(); i++) {
+                    totalvalues[i] = 0;
                 }
-                overlay.add(tmpscaled);
-                counter++;
-            }
 
-            raw.setRoi(null, true);
-            raw.setOverlay(overlay);
+                String imagename = raw.getTitle();
+                String roiname = "";
+                String slices = "";
+                String frames = "";
+                if (roi != null) {
+                    roiname = roi.getName();
+                }
+                
+                if (nSlices > 1) {
+                    slices = "-z:"+z+"/"+nSlices;
+                }
+
+                if (nFrames > 1) {
+                    frames = "-t:"+t+"/"+nFrames;
+                }
+                
+                String title = imagename+roiname+slices+frames;
+
+                Iterator <Integer> it = values.keySet().iterator();
+                while(it.hasNext()) {
+                    int objClass = (int)it.next();
+                    String objName = values.get(objClass);
+
+                    // Apply roi
+                    if (roi != null)
+                        segmented.setRoi(roi);
+
+                    // Get segmented image and apply binary threshold for positives or negatives
+                    ImageProcessor ip = segmented.getProcessor();
+                    ip.setThreshold((double) objClass, (double) objClass, ImageProcessor.NO_LUT_UPDATE);
+                    pa.analyze(segmented);
+
+                    // Now get the ROIS and rescale them to match the raw image
+                    Roi[] tmprois = countman.getRoisAsArray();
+                    totalvalues[objClass-1] = tmprois.length;
+                    countman.runCommand("Deselect");
+                    countman.runCommand("Delete");
+
+                    if (display_values) {
+                        
+                        int counter;
+                        Overlay overlay = raw.getOverlay();
+
+                        if (overlay==null) {
+                            overlay = new Overlay();
+                            counter = 1;
+                        } else {
+                            counter = overlay.size()+1;
+                        }
+                        
+                        if (!overlay.getDrawLabels())
+                            overlay.drawLabels(true);
+                
+                        if (!overlay.getDrawNames())
+                            overlay.drawNames(true);
+                            
+                        overlay.setLabelColor(Color.white);
+                        overlay.drawBackgrounds(true);
+
+                        for (Roi tmproi: tmprois) {
+                            int pan_x = tmproi.getBounds().x;
+                            int pan_y = tmproi.getBounds().y;
+                            int new_x = (int) floor(pan_x * invscale);
+                            int new_y = (int) floor(pan_y * invscale);
+                            
+                            Roi tmpscaled = RoiScaler.scale(tmproi, invscale, invscale, false);
+                            tmpscaled.setLocation(new_x, new_y);
+                            tmpscaled.setName(objName+"-"+String.valueOf(counter));
+                            tmpscaled.setPosition(1, tmproi.getZPosition(), tmproi.getTPosition());
+
+                            raw.setT(tmproi.getTPosition());
+                            raw.setZ(tmproi.getZPosition());
+
+                            for (int channel = firstC; channel <= lastC; channel++) {
+                                raw.setC(channel);
+                                raw.setRoi(tmpscaled, false);
+                                measure.measure();
+                                singles.addValue("Lysosome Type", objName);
+                                singles.addValue("Lysosome Channel", ch_lyso);
+                                singles.addValue("Protein Channel", ch_protein);
+                                singles.addValue("Measurement Channel", channel);
+                                singles.show("Results");
+                            }
+                            overlay.add(tmpscaled);
+                            counter++;
+                        }
+
+                        raw.setOverlay(overlay);
+                    }
+                }
+
+                updateSummary(title, values, totalvalues);
+            }
         }
 
-        return tmprois.length;
+
     }
 
+    /**
+     * Update summary table
+     * 
+     * @param title of measurement, with image name, roiname, slice and frame
+     * @param values dictionary of values
+     * @param totalvalues array of counts
+     */
+    void updateSummary(String title, HashMap<Integer, String> values, int[] totalvalues) {
+        ResultsTable totals = null;
+        Frame frame = WindowManager.getFrame("LysoQuant");
+        if (frame!=null && (frame instanceof TextWindow)) {
+            TextWindow tw = (TextWindow)frame;
+            ResultsTable table = tw.getTextPanel().getResultsTable();
+            if (table!= null) {
+                totals = table;
+            } else {
+                totals = new ResultsTable();
+            }
+        } else {
+                totals = new ResultsTable();
+        }
+
+        int sum = 0;
+        Iterator<Integer> it = values.keySet().iterator();
+        while(it.hasNext()) {
+            int objClass = (int)it.next();
+            sum += totalvalues[objClass-1];
+        }
+
+        totals.incrementCounter();
+        totals.addLabel(title);
+        totals.addValue("Lysosome Ch", ch_lyso);
+        totals.addValue("Protein Ch", ch_protein);
+
+        Iterator<Integer> it2 = values.keySet().iterator();
+        while(it2.hasNext()) {
+            int objClass = (int)it2.next();
+            String objName = values.get(objClass);
+            totals.addValue(objName, totalvalues[objClass-1]);
+            totals.addValue(objName+" Ratio", (double)totalvalues[objClass-1]/(double)sum);
+
+        }
+        totals.show("LysoQuant");
+    }
  
     /**
      * Pre-processing step. Take multichannel TIFF image and convert it to RGB
