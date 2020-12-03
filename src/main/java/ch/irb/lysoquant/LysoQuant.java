@@ -281,9 +281,6 @@ public class LysoQuant implements PlugIn, Measurements {
 
         for (int t=1; t<= nFrames; t++) {
             for (int z=1; z <= nSlices; z++) {
-                segmented.setT(t);
-                segmented.setZ(z);
-
                 int[] totalvalues = new int[values.size()];
                 for (int i=0; i< values.size(); i++) {
                     totalvalues[i] = 0;
@@ -306,6 +303,9 @@ public class LysoQuant implements PlugIn, Measurements {
                 }
                 
                 String title = imagename+roiname+slices+frames;
+
+                segmented.setT(t);
+                segmented.setZ(z);
 
                 Iterator <Integer> it = values.keySet().iterator();
                 while(it.hasNext()) {
@@ -357,14 +357,11 @@ public class LysoQuant implements PlugIn, Measurements {
                             Roi tmpscaled = RoiScaler.scale(tmproi, invscale, invscale, false);
                             tmpscaled.setLocation(new_x, new_y);
                             tmpscaled.setName(objName+"-"+String.valueOf(counter));
-                            tmpscaled.setPosition(1, tmproi.getZPosition(), tmproi.getTPosition());
-
-                            raw.setT(tmproi.getTPosition());
-                            raw.setZ(tmproi.getZPosition());
+                            tmpscaled.setPosition(ch_lyso, z, t);
 
                             for (int channel = firstC; channel <= lastC; channel++) {
-                                raw.setC(channel);
                                 raw.setRoi(tmpscaled, false);
+                                raw.setPosition(channel, z, t);
                                 measure.measure();
                                 singles.addValue("Lysosome Type", objName);
                                 singles.addValue("Lysosome Channel", ch_lyso);
