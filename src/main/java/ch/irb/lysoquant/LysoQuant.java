@@ -44,6 +44,7 @@ import ij.plugin.PlugIn;
 import ij.plugin.RoiScaler;
 import ij.plugin.RGBStackConverter;
 import ij.plugin.RGBStackMerge;
+import ij.plugin.Duplicator;
 import de.unifreiburg.unet.*;
 import ij.plugin.filter.Analyzer;
 import ij.plugin.filter.ParticleAnalyzer;
@@ -166,7 +167,7 @@ public class LysoQuant implements PlugIn, Measurements {
             unetp += outputsoftmaxscores;
     
             
-            ImagePlus rgb = make_rgb(ch_protein, ch_lyso, image);
+            ImagePlus rgb = make_rgb(ch_protein, ch_lyso, image, firstZ, lastZ, firstT, lastT);
             rgb.show();
 
             if (roiman==null || roiman.getCount()<1){
@@ -279,8 +280,8 @@ public class LysoQuant implements PlugIn, Measurements {
         int measurements = 0;
         ParticleAnalyzer pa = new ParticleAnalyzer(options, measurements, new ResultsTable(), minSize, Double.MAX_VALUE, 0.0, 1.0);
 
-        for (int t=1; t<= nFrames; t++) {
-            for (int z=1; z <= nSlices; z++) {
+        for (int t=firstT; t<= lastT; t++) {
+            for (int z=firstT; z <= lastZ; z++) {
                 int[] totalvalues = new int[values.size()];
                 for (int i=0; i< values.size(); i++) {
                     totalvalues[i] = 0;
@@ -436,11 +437,17 @@ public class LysoQuant implements PlugIn, Measurements {
      * @param ch_protein is the channel of the protein inside lysosomes --> RED
      * @param ch_lyso is the marker for lysosomes --> GREEN
      * @param imp is the TIFF image to convert
+     * @param firstZ for reducing the stack according to input
+     * @param lastZ for reducing the stack according to input
+     * @param firstT for reducing the stack according to input
+     * @param lastT for reducing the stack according to input
      * @return rgb image with settings above
      */
-    private ImagePlus make_rgb(int ch_protein, int ch_lyso, ImagePlus imp) {
+    private ImagePlus make_rgb(int ch_protein, int ch_lyso, ImagePlus imp, int firstZ, int lastZ, int firstT, int lastT) {
         Calibration cal = imp.getCalibration();
-        ImagePlus[] channels = ChannelSplitter.split(imp);
+        int nChannels = imp.getNChannels();
+        ImagePlus imp2 = new Duplicator().run(imp, 1, nChannels, firstZ, lastZ, firstT, lastT);
+        ImagePlus[] channels = ChannelSplitter.split(imp2);
         IJ.run(channels[ch_protein-1], "Red", "");
         IJ.run(channels[ch_lyso-1], "Green", "");
         
