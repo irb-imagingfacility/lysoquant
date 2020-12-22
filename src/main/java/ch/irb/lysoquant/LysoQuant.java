@@ -446,6 +446,7 @@ public class LysoQuant implements PlugIn, Measurements {
     private ImagePlus make_rgb(int ch_protein, int ch_lyso, ImagePlus imp, int firstZ, int lastZ, int firstT, int lastT) {
         Calibration cal = imp.getCalibration();
         int nChannels = imp.getNChannels();
+        imp.deleteRoi(); // We need to duplicate the whole image
         ImagePlus imp2 = new Duplicator().run(imp, 1, nChannels, firstZ, lastZ, firstT, lastT);
         ImagePlus[] channels = ChannelSplitter.split(imp2);
         IJ.run(channels[ch_protein-1], "Red", "");

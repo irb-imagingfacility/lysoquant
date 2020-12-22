@@ -14,7 +14,7 @@
 
 	<groupId>ch.irb</groupId>
 	<artifactId>LysoQuant</artifactId>
-	<version>1.0.4</version>
+	<version>1.0.5</version>
 
 	<name>LysoQuant</name>
 	<description>LysoQuant deep learning segmentation of endolysosomes.</description>
@@ -116,5 +116,7 @@
 		<main-class>ch.irb.LysoQuant</main-class>
 		<license.licenseName>gpl_3</license.licenseName>
 		<license.copyrightOwners>Institute for Research in Biomedicine</license.copyrightOwners>
+	    <maven.compiler.source>1.8</maven.compiler.source>
+  	 	<maven.compiler.target>1.8</maven.compiler.target>
 	</properties>
 </project>
