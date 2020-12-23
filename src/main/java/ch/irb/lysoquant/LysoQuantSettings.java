@@ -45,7 +45,7 @@ import ij.plugin.PlugIn;
  */
 public class LysoQuantSettings implements PlugIn {
 
-    public final String VERSION="1.0.5";
+    public final String VERSION="1.0.6";
 
     @Override
     public void run(String arg) {

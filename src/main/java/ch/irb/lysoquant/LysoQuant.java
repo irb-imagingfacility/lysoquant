@@ -192,7 +192,11 @@ public class LysoQuant implements PlugIn, Measurements {
 
 
             } else {
-                roiman.runCommand("Combine");
+                if (roiman.getCount()>1) {
+                    roiman.runCommand("Combine");
+                } else {
+                    roiman.select(0);
+                }
                 IJ.run("Clear Outside", "stack");
                 
                 try {
@@ -210,7 +214,11 @@ public class LysoQuant implements PlugIn, Measurements {
                 int swidth = segmented.getWidth();
                 double scale = (double) swidth/ (double) width;
 
+                // Now take rois and clear Roi manager
                 Roi[] rois = roiman.getRoisAsArray();
+                roiman.runCommand("Deselect");
+                roiman.runCommand("Delete");
+
                 for (Roi roi : rois){
                     int pan_x = roi.getBounds().x;
                     int pan_y = roi.getBounds().y;
@@ -223,7 +231,12 @@ public class LysoQuant implements PlugIn, Measurements {
 
                     count(segmented, image, scaled, firstC, lastC, values, minSize, display_values);
     
-                }                    
+                }
+                
+                // Apply back old rois
+                for (Roi roi: rois) {
+                    roiman.addRoi(roi);
+                }
             }
         }
     }     
@@ -305,9 +318,6 @@ public class LysoQuant implements PlugIn, Measurements {
                 
                 String title = imagename+roiname+slices+frames;
 
-                segmented.setT(t);
-                segmented.setZ(z);
-
                 Iterator <Integer> it = values.keySet().iterator();
                 while(it.hasNext()) {
                     int objClass = (int)it.next();
@@ -316,6 +326,10 @@ public class LysoQuant implements PlugIn, Measurements {
                     // Apply roi
                     if (roi != null)
                         segmented.setRoi(roi);
+
+                    // Override Roi position
+                    segmented.setT(t);
+                    segmented.setZ(z);
 
                     // Get segmented image and apply binary threshold for positives or negatives
                     ImageProcessor ip = segmented.getProcessor();
