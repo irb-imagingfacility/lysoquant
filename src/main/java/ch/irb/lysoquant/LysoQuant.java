@@ -134,6 +134,8 @@ public class LysoQuant implements PlugIn, Measurements {
 
         String title = image.getTitle();
 
+        String cellID;
+
         if (showDialog()) {
             // parameters
             String unetp = "";
@@ -175,8 +177,12 @@ public class LysoQuant implements PlugIn, Measurements {
                 if (roiA != null) {
                     rgb.setRoi(roiA);
                     IJ.run("Clear Outside", "stack");
+                    Rectangle bounds = roiA.getBounds();
+                    cellID = IJ.pad(bounds.x,4)+"-"+IJ.pad(bounds.y,4);
+                } else { 
+                    cellID = "0000-0000";
                 }
-                
+
                 try {
                     SegmentationJob.processHyperStack(unetp);
                 } catch (InterruptedException ex) {
@@ -188,10 +194,11 @@ public class LysoQuant implements PlugIn, Measurements {
                 segmented.setTitle("LQ_"+title);
                 new StackWindow(segmented);
 
-                count(segmented, image, null, firstC, lastC, values, minSize, display_values);
-
+                count(segmented, image, cellID, null, firstC, lastC, values, minSize, display_values);
 
             } else {
+                roiman.runCommand(image, "Show None");
+
                 if (roiman.getCount()>1) {
                     roiman.runCommand("Combine");
                 } else {
@@ -220,6 +227,8 @@ public class LysoQuant implements PlugIn, Measurements {
                 roiman.runCommand("Delete");
 
                 for (Roi roi : rois){
+                    cellID = roi.getName();
+
                     int pan_x = roi.getBounds().x;
                     int pan_y = roi.getBounds().y;
                     
@@ -229,7 +238,7 @@ public class LysoQuant implements PlugIn, Measurements {
                     Roi scaled = RoiScaler.scale(roi, scale, scale, false);
                     scaled.setLocation(new_x, new_y);
 
-                    count(segmented, image, scaled, firstC, lastC, values, minSize, display_values);
+                    count(segmented, image, cellID, scaled, firstC, lastC, values, minSize, display_values);
     
                 }
                 
@@ -258,7 +267,7 @@ public class LysoQuant implements PlugIn, Measurements {
      *  @return int of total count for objClass
      *  @return table with measurements and info about inputs and image position in hyperstack
      */
-    void count(ImagePlus segmented, ImagePlus raw, Roi roi, int firstC, int lastC, 
+    void count(ImagePlus segmented, ImagePlus raw, String cellID, Roi roi, int firstC, int lastC, 
                         HashMap<Integer, String> values, double minSize, boolean display_values) {
 
         int width = raw.getWidth();
@@ -337,58 +346,68 @@ public class LysoQuant implements PlugIn, Measurements {
                     pa.analyze(segmented);
 
                     // Now get the ROIS and rescale them to match the raw image
-                    Roi[] tmprois = countman.getRoisAsArray();
-                    totalvalues[objClass-1] = tmprois.length;
-                    countman.runCommand("Deselect");
-                    countman.runCommand("Delete");
+                    if (countman.getCount() > 1) {
+                        Roi[] tmprois = countman.getRoisAsArray();
+                        totalvalues[objClass-1] = tmprois.length;
+                        countman.runCommand("Deselect");
+                        countman.runCommand("Delete");
 
-                    if (display_values) {
-                        
-                        int counter;
-                        Overlay overlay = raw.getOverlay();
-
-                        if (overlay==null) {
-                            overlay = new Overlay();
-                            counter = 1;
-                        } else {
-                            counter = overlay.size()+1;
-                        }
-                        
-                        if (!overlay.getDrawLabels())
-                            overlay.drawLabels(true);
-                
-                        if (!overlay.getDrawNames())
-                            overlay.drawNames(true);
+                        if (display_values) {
                             
-                        overlay.setLabelColor(Color.white);
-                        overlay.drawBackgrounds(true);
+                            int counter;
+                            Overlay overlay = raw.getOverlay();
 
-                        for (Roi tmproi: tmprois) {
-                            int pan_x = tmproi.getBounds().x;
-                            int pan_y = tmproi.getBounds().y;
-                            int new_x = (int) floor(pan_x * invscale);
-                            int new_y = (int) floor(pan_y * invscale);
-                            
-                            Roi tmpscaled = RoiScaler.scale(tmproi, invscale, invscale, false);
-                            tmpscaled.setLocation(new_x, new_y);
-                            tmpscaled.setName(objName+"-"+String.valueOf(counter));
-                            tmpscaled.setPosition(ch_lyso, z, t);
-
-                            for (int channel = firstC; channel <= lastC; channel++) {
-                                raw.setRoi(tmpscaled, false);
-                                raw.setPosition(channel, z, t);
-                                measure.measure();
-                                singles.addValue("Lysosome Type", objName);
-                                singles.addValue("Lysosome Channel", ch_lyso);
-                                singles.addValue("Protein Channel", ch_protein);
-                                singles.addValue("Measurement Channel", channel);
-                                singles.show("Results");
+                            if (overlay==null) {
+                                overlay = new Overlay();
+                                counter = 1;
+                            } else {
+                                counter = overlay.size()+1;
                             }
-                            overlay.add(tmpscaled);
-                            counter++;
-                        }
+                            
+                            if (!overlay.getDrawLabels())
+                                overlay.drawLabels(true);
+                    
+                            if (!overlay.getDrawNames())
+                                overlay.drawNames(true);
+                                
+                            overlay.setLabelColor(Color.white);
+                            overlay.drawBackgrounds(true);
 
-                        raw.setOverlay(overlay);
+                            for (Roi tmproi: tmprois) {
+                                int pan_x = tmproi.getBounds().x;
+                                int pan_y = tmproi.getBounds().y;
+                                int new_x = (int) floor(pan_x * invscale);
+                                int new_y = (int) floor(pan_y * invscale);
+                                
+                                Roi tmpscaled = RoiScaler.scale(tmproi, invscale, invscale, false);
+                                tmpscaled.setLocation(new_x, new_y);
+                                tmpscaled.setName(objName+"-"+String.valueOf(counter));
+                                tmpscaled.setPosition(ch_lyso, z, t);
+
+                                for (int channel = firstC; channel <= lastC; channel++) {
+                                    raw.setRoi(tmpscaled, false);
+                                    raw.setPosition(channel, z, t);
+                                    measure.measure();
+                                    singles.addValue("Lysosome Type", objName);
+                                    singles.addValue("Lysosome Channel", ch_lyso);
+                                    singles.addValue("Protein Channel", ch_protein);
+                                    singles.addValue("Measurement Channel", channel);
+                                    singles.addValue("Image", imagename);
+                                    singles.addValue("Cell ID", cellID);
+                                    
+                                    if (nSlices > 1)
+                                        singles.addValue("Slice", slices);
+                                    if (nFrames > 1)
+                                        singles.addValue("Frame", frames);
+
+                                    singles.show("Results");
+                                }
+                                overlay.add(tmpscaled);
+                                counter++;
+                            }
+
+                            raw.setOverlay(overlay);
+                        }
                     }
                 }
 
@@ -439,8 +458,8 @@ public class LysoQuant implements PlugIn, Measurements {
             String objName = values.get(objClass);
             totals.addValue(objName, totalvalues[objClass-1]);
             totals.addValue(objName+" Ratio", (double)totalvalues[objClass-1]/(double)sum);
-
         }
+        totals.addValue("Total #", sum);
         totals.show("LysoQuant");
     }
  
