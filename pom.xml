@@ -14,7 +14,7 @@
 
 	<groupId>ch.irb</groupId>
 	<artifactId>LysoQuant</artifactId>
-	<version>1.1.0</version>
+	<version>1.1.1</version>
 
 	<name>LysoQuant</name>
 	<description>LysoQuant deep learning segmentation of endolysosomes.</description>

@@ -346,7 +346,7 @@ public class LysoQuant implements PlugIn, Measurements {
                     pa.analyze(segmented);
 
                     // Now get the ROIS and rescale them to match the raw image
-                    if (countman.getCount() > 1) {
+                    if (countman.getCount() > 0) {
                         Roi[] tmprois = countman.getRoisAsArray();
                         totalvalues[objClass-1] = tmprois.length;
                         countman.runCommand("Deselect");
