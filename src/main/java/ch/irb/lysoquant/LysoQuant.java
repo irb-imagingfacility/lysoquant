@@ -50,14 +50,18 @@ import ij.plugin.filter.Analyzer;
 import ij.plugin.filter.ParticleAnalyzer;
 import ij.plugin.frame.RoiManager;
 import ij.process.ImageProcessor;
+import ij.process.ImageStatistics;
+
 import static java.lang.Math.floor;
 import ij.util.Tools;
 
-
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.awt.Color;
+import java.awt.Font;
 
 /**
  * LysoQuant deep learning segmentation of endolysosomes.
@@ -80,6 +84,8 @@ public class LysoQuant implements PlugIn, Measurements {
     int nFrames;
     int nChannels;
     boolean display_values;
+    boolean display_cargo;
+    int cargo_thres;
     boolean display_warning = Boolean.parseBoolean(Prefs.get("lysoquant.display_warning", "true"));
 
     double minSize = Double.parseDouble(Prefs.get("lysoquant.minsize", "")); //in microns squared
@@ -194,7 +200,7 @@ public class LysoQuant implements PlugIn, Measurements {
                 segmented.setTitle("LQ_"+title);
                 new StackWindow(segmented);
 
-                count(segmented, image, cellID, null, firstC, lastC, values, minSize, display_values);
+                count(segmented, image, cellID, null, firstC, lastC, values, minSize, display_values, display_cargo, cargo_thres);
 
             } else {
                 roiman.runCommand(image, "Show None");
@@ -238,7 +244,7 @@ public class LysoQuant implements PlugIn, Measurements {
                     Roi scaled = RoiScaler.scale(roi, scale, scale, false);
                     scaled.setLocation(new_x, new_y);
 
-                    count(segmented, image, cellID, scaled, firstC, lastC, values, minSize, display_values);
+                    count(segmented, image, cellID, scaled, firstC, lastC, values, minSize, display_values, display_cargo, cargo_thres);
     
                 }
                 
@@ -264,11 +270,13 @@ public class LysoQuant implements PlugIn, Measurements {
      *  @param objName their corresponding names. See class variables
      *  @param minSize cutoff for recognizing particles
      *  @param display_values if true measure the value on each lysosome
+     *  @param display_cargo if true measure area of cargo inside each lysosome...
+     *  @param carg_thres ...with threshold below
      *  @return int of total count for objClass
      *  @return table with measurements and info about inputs and image position in hyperstack
      */
     void count(ImagePlus segmented, ImagePlus raw, String cellID, Roi roi, int firstC, int lastC, 
-                        HashMap<Integer, String> values, double minSize, boolean display_values) {
+                        HashMap<Integer, String> values, double minSize, boolean display_values, boolean display_cargo, int cargo_thres) {
 
         int width = raw.getWidth();
         int swidth = segmented.getWidth();
@@ -400,6 +408,26 @@ public class LysoQuant implements PlugIn, Measurements {
                                     if (nFrames > 1)
                                         singles.addValue("Frame", frames);
 
+                                    // Calculate % cargo area occupied inside each lysosome, when cargo has intensity higher than cargo_thres
+                                    if (display_cargo) {
+                                        // here we're using the same roi and position as above
+                                        
+                                        // create an image processor to set threshold
+                                        ImageProcessor ipraw = raw.getProcessor();
+                                        double minThres = (double)cargo_thres;
+                                        double maxThres = ipraw.getMax();
+                                        ipraw.setThreshold(minThres, maxThres, ImageProcessor.NO_LUT_UPDATE);
+                                        
+                                        // define the measurements and save to variable
+                                        int cargoptions = ImageStatistics.AREA_FRACTION; // this considers implicitly the ImageStatistics.LIMIT
+                                        ImageStatistics cargostats = ImageStatistics.getStatistics(ipraw, cargoptions, cal);
+
+                                        // add to our tables of values for single lysosomes
+                                        singles.addValue("%Cargo Area", cargostats.areaFraction);
+                                        singles.addValue("Cargo Area minT", minThres);
+                                        singles.addValue("Cargo Area maxT", maxThres);
+                                    }
+
                                     singles.show("Results");
                                 }
                                 overlay.add(tmpscaled);
@@ -499,7 +527,7 @@ public class LysoQuant implements PlugIn, Measurements {
      * @return true is everything goes fine, false if canceled
      */
     private boolean showDialog() {
-	    GenericDialog gd = new GenericDialog("LysoQuant");
+        GenericDialog gd = new GenericDialog("LysoQuant");
 
 	    gd.addNumericField("Lysosome Channel", Integer.parseInt(Prefs.get("lysoquant.display_lyso", "2")), 0);
 	    gd.addNumericField("Protein Channel", Integer.parseInt(Prefs.get("lysoquant.display_protein", "3")), 0);
@@ -512,25 +540,33 @@ public class LysoQuant implements PlugIn, Measurements {
             gd.addStringField("Frames", "1-"+nFrames);		      
         }	
 
-	    boolean defaultTick = Boolean.parseBoolean(Prefs.get("lysoquant.display_values", "false"));
-	    gd.addCheckbox("Show single values", defaultTick);
+	    boolean defaultTick_display = Boolean.parseBoolean(Prefs.get("lysoquant.display_values", "false"));
+	    gd.addCheckbox("Show single values", defaultTick_display);
 
         int oldfirstC = (int)Prefs.get("lysoquant.display_firstC", 1);
         if (oldfirstC > nChannels) {
             oldfirstC = 1;
         }
-	    
+        
         int oldlastC = (int)Prefs.get("lysoquant.display_lastC", nChannels);
         if (oldlastC > nChannels) {
             oldlastC = nChannels;
         }
-	
+    
         if (oldfirstC == oldlastC) {
             gd.addStringField("Measurement Channels", String.valueOf(oldfirstC));
         } else {
             gd.addStringField("Measurement Channels", String.valueOf(oldfirstC)+"-"+String.valueOf(oldlastC));
         }
+
+        boolean defaultTick_area = Boolean.parseBoolean(Prefs.get("lysoquant.display_cargo", "false"));
+        gd.addCheckbox("Measure cargo area", defaultTick_area);
         
+        gd.addNumericField("Threshold for area", Integer.parseInt(Prefs.get("lysoquant.cargo_thres", "0")), 0); 
+
+        Font citationFont = new Font("Arial", Font.PLAIN, 10);
+        gd.addMessage("Please cite Morone et al., MBoC 2020\ndoi:10.1091/mbc.e20-04-0269 ", citationFont);
+
         gd.showDialog();
         if (gd.wasCanceled())
             return false;
@@ -582,13 +618,19 @@ public class LysoQuant implements PlugIn, Measurements {
         if (firstC<1) firstC = 1;
         if (lastC>nChannels) lastC = nChannels;
         if (firstC>lastC) {firstC=1; lastC=nChannels;}
-        
+
+        display_cargo = (boolean)gd.getNextBoolean();
+
+        cargo_thres = (int)gd.getNextNumber();
+       
         // Save for next usage
         Prefs.set("lysoquant.display_lyso", ch_lyso);
         Prefs.set("lysoquant.display_protein", ch_protein);
         Prefs.set("lysoquant.display_values", Boolean.toString(display_values));
         Prefs.set("lysoquant.display_firstC", firstC);
         Prefs.set("lysoquant.display_lastC", lastC);
+        Prefs.set("lysoquant.display_cargo", Boolean.toString(display_cargo));
+        Prefs.set("lysoquant.cargo_thres", cargo_thres);
 
         if (nSlices > 1 && display_warning) {
             IJ.showMessage("LysoQuant is a 2D deep learning model", "Be careful! 3D images are not supported in this version of the deep learning model");
