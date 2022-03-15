@@ -55,7 +55,8 @@ import ij.process.ImageStatistics;
 import static java.lang.Math.floor;
 import ij.util.Tools;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.logging.Level;
@@ -313,6 +314,8 @@ public class LysoQuant implements PlugIn, Measurements {
         for (int t=firstT; t<= lastT; t++) {
             for (int z=firstT; z <= lastZ; z++) {
                 int[] totalvalues = new int[values.size()];
+                ArrayList<Double> cargovalues = new ArrayList<Double>();
+
                 for (int i=0; i< values.size(); i++) {
                     totalvalues[i] = 0;
                 }
@@ -424,6 +427,7 @@ public class LysoQuant implements PlugIn, Measurements {
 
                                         // add to our tables of values for single lysosomes
                                         singles.addValue("%Cargo Area", cargostats.areaFraction);
+                                        cargovalues.add(cargostats.areaFraction);
                                         singles.addValue("Cargo Area minT", minThres);
                                         singles.addValue("Cargo Area maxT", maxThres);
                                     }
@@ -439,11 +443,26 @@ public class LysoQuant implements PlugIn, Measurements {
                     }
                 }
 
-                updateSummary(title, values, totalvalues);
+                Double cargomedian = getMedian(cargovalues);
+                updateSummary(title, values, totalvalues, cargomedian);
             }
         }
 
 
+    }
+
+    // com.java2s
+    Double getMedian(ArrayList<Double> values) {
+        Collections.sort(values);
+
+        if (values.size() % 2 == 1)
+            return values.get((values.size() + 1) / 2 - 1);
+        else {
+            double lower = values.get(values.size() / 2 - 1);
+            double upper = values.get(values.size() / 2);
+
+            return (lower + upper) / 2.0;
+        }
     }
 
     /**
@@ -453,7 +472,7 @@ public class LysoQuant implements PlugIn, Measurements {
      * @param values dictionary of values
      * @param totalvalues array of counts
      */
-    void updateSummary(String title, HashMap<Integer, String> values, int[] totalvalues) {
+    void updateSummary(String title, HashMap<Integer, String> values, int[] totalvalues, double cargomedian) {
         ResultsTable totals = null;
         Frame frame = WindowManager.getFrame("LysoQuant");
         if (frame!=null && (frame instanceof TextWindow)) {
@@ -488,6 +507,7 @@ public class LysoQuant implements PlugIn, Measurements {
             totals.addValue(objName+" Ratio", (double)totalvalues[objClass-1]/(double)sum);
         }
         totals.addValue("Total #", sum);
+        totals.addValue("%Cargo Area Median", cargomedian);
         totals.show("LysoQuant");
     }
  
