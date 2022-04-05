@@ -443,8 +443,12 @@ public class LysoQuant implements PlugIn, Measurements {
                     }
                 }
 
-                Double cargomedian = getMedian(cargovalues);
-                updateSummary(title, values, totalvalues, cargomedian);
+                if (display_cargo) {
+                    Double cargomedian = getMedian(cargovalues);
+                    updateSummary(title, values, totalvalues, cargomedian);
+                } else {
+                    updateSummary(title, values, totalvalues);
+                }
             }
         }
 
@@ -471,6 +475,7 @@ public class LysoQuant implements PlugIn, Measurements {
      * @param title of measurement, with image name, roiname, slice and frame
      * @param values dictionary of values
      * @param totalvalues array of counts
+     * @param cargomedian
      */
     void updateSummary(String title, HashMap<Integer, String> values, int[] totalvalues, double cargomedian) {
         ResultsTable totals = null;
@@ -508,6 +513,52 @@ public class LysoQuant implements PlugIn, Measurements {
         }
         totals.addValue("Total #", sum);
         totals.addValue("%Cargo Area Median", cargomedian);
+        totals.show("LysoQuant");
+
+    }
+
+        /**
+     * Update summary table
+     * 
+     * @param title of measurement, with image name, roiname, slice and frame
+     * @param values dictionary of values
+     * @param totalvalues array of counts
+     */
+    void updateSummary(String title, HashMap<Integer, String> values, int[] totalvalues) {
+        ResultsTable totals = null;
+        Frame frame = WindowManager.getFrame("LysoQuant");
+        if (frame!=null && (frame instanceof TextWindow)) {
+            TextWindow tw = (TextWindow)frame;
+            ResultsTable table = tw.getTextPanel().getResultsTable();
+            if (table!= null) {
+                totals = table;
+            } else {
+                totals = new ResultsTable();
+            }
+        } else {
+                totals = new ResultsTable();
+        }
+
+        int sum = 0;
+        Iterator<Integer> it = values.keySet().iterator();
+        while(it.hasNext()) {
+            int objClass = (int)it.next();
+            sum += totalvalues[objClass-1];
+        }
+
+        totals.incrementCounter();
+        totals.addLabel(title);
+        totals.addValue("Lysosome Ch", ch_lyso);
+        totals.addValue("Protein Ch", ch_protein);
+
+        Iterator<Integer> it2 = values.keySet().iterator();
+        while(it2.hasNext()) {
+            int objClass = (int)it2.next();
+            String objName = values.get(objClass);
+            totals.addValue(objName, totalvalues[objClass-1]);
+            totals.addValue(objName+" Ratio", (double)totalvalues[objClass-1]/(double)sum);
+        }
+        totals.addValue("Total #", sum);
         totals.show("LysoQuant");
     }
  
