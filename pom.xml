@@ -14,7 +14,7 @@
 
 	<groupId>ch.irb</groupId>
 	<artifactId>LysoQuant</artifactId>
-	<version>1.2.2</version>
+	<version>2.1.0</version>
 
 	<name>LysoQuant</name>
 	<description>LysoQuant deep learning segmentation of endolysosomes.</description>
@@ -95,20 +95,22 @@
         <dependency>
             <groupId>net.imagej</groupId>
             <artifactId>ij</artifactId>
-            <version>1.52n</version>
+            <version>1.54p</version>
             <type>jar</type>
+            <scope>provided</scope>
         </dependency>
+        <!-- Shipped with Fiji (com.jcraft.jsch package, also provided by the com.github.mwiede fork) -->
         <dependency>
-            <groupId>de.unifreiburg</groupId>
-            <artifactId>unet</artifactId>
-            <version>1</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/src/main/resources/Unet_Segmentation.jar</systemPath>        
+            <groupId>com.jcraft</groupId>
+            <artifactId>jsch</artifactId>
+            <version>0.1.55</version>
+            <scope>provided</scope>
         </dependency>
+        <!-- The commands for scripts (@Plugin, @Parameter); the version is managed by pom-scijava -->
         <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>3.3.1</version>
+            <groupId>org.scijava</groupId>
+            <artifactId>scijava-common</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
     <properties>
@@ -118,5 +120,37 @@
 		<license.copyrightOwners>Institute for Research in Biomedicine</license.copyrightOwners>
 	    <maven.compiler.source>1.8</maven.compiler.source>
   	 	<maven.compiler.target>1.8</maven.compiler.target>
+		<!-- Allow building with a newer JDK; see the java9plus profile -->
+		<scijava.jvm.build.version>[1.8.0-101,)</scijava.jvm.build.version>
 	</properties>
+	<build>
+		<resources>
+			<!-- lysoquant.properties holds the version of this pom, shown in the settings dialog -->
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+				<includes>
+					<include>lysoquant.properties</include>
+				</includes>
+			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+				<excludes>
+					<exclude>lysoquant.properties</exclude>
+				</excludes>
+			</resource>
+		</resources>
+	</build>
+	<profiles>
+		<profile>
+			<!-- Keep to the Java 8 API when building with JDK 9 or newer (the release option needs JDK 9+) -->
+			<id>java9plus</id>
+			<activation>
+				<jdk>[9,)</jdk>
+			</activation>
+			<properties>
+				<maven.compiler.release>8</maven.compiler.release>
+			</properties>
+		</profile>
+	</profiles>
 </project>

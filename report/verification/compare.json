@@ -1,0 +1,114 @@
+{
+ "shape": [
+  2279,
+  2279
+ ],
+ "n_pixels": 5193841,
+ "confusion": [
+  [
+   4211607,
+   13,
+   50
+  ],
+  [
+   16,
+   428889,
+   6
+  ],
+  [
+   31,
+   2,
+   553227
+  ]
+ ],
+ "diff_pixels": 118,
+ "accuracy": 0.999977280783143,
+ "per_class": {
+  "negative": {
+   "dice": 0.9999568671566713,
+   "iou": 0.9999137380340665,
+   "caffe_px": 428911,
+   "torch_px": 428904
+  },
+  "positive": {
+   "dice": 0.9999195693253674,
+   "iou": 0.9998391515878811,
+   "caffe_px": 553260,
+   "torch_px": 553283
+  },
+  "foreground": {
+   "dice": 0.9999440020607242,
+   "iou": 0.9998880103926355,
+   "caffe_px": 982171,
+   "torch_px": 982187
+  }
+ },
+ "diff": {
+  "margin_median": 0.0028289752081036568,
+  "margin_max": 0.053653836250305176,
+  "margin_median_all": 14.422245025634766,
+  "frac_margin_below_0p1_all": 0.003594064585342524,
+  "within_2px_of_boundary": 0.9491525423728814,
+  "max_dist_to_boundary": 20.518284528683193,
+  "clusters": 115,
+  "largest_cluster": 2,
+  "within_5px_of_tile_edge": 5,
+  "within_10px_of_image_border": 0,
+  "frac_of_boundary_pixels": 0.0004917424769651988
+ },
+ "objects": {
+  "negative": {
+   "caffe": 263,
+   "torch": 262,
+   "identical": 239,
+   "mean_iou": 0.9943368416057714,
+   "min_iou": 0.3333333333333333,
+   "area_caffe": 428911,
+   "area_torch": 428904
+  },
+  "positive": {
+   "caffe": 222,
+   "torch": 223,
+   "identical": 174,
+   "mean_iou": 0.9990043585855474,
+   "min_iou": 0.92,
+   "area_caffe": 553260,
+   "area_torch": 553283
+  },
+  "all": {
+   "caffe": 385,
+   "torch": 384,
+   "identical": 322,
+   "mean_iou": 0.9957754853469668,
+   "min_iou": 0.3333333333333333,
+   "area_caffe": 982171,
+   "area_torch": 982187
+  }
+ },
+ "tile_sweep": [
+  {
+   "tile": 388,
+   "tiles": 36,
+   "diff_vs_caffe": 90644,
+   "frac": 0.0174522092609304
+  },
+  {
+   "tile": 516,
+   "tiles": 25,
+   "diff_vs_caffe": 79470,
+   "frac": 0.01530081494601009
+  },
+  {
+   "tile": 900,
+   "tiles": 9,
+   "diff_vs_caffe": 118,
+   "frac": 2.2719216857042794e-05
+  },
+  {
+   "tile": 1156,
+   "tiles": 4,
+   "diff_vs_caffe": 35813,
+   "frac": 0.006895282316112488
+  }
+ ]
+}

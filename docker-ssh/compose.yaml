@@ -1,0 +1,57 @@
+# Usage (from this folder): ./setup.sh   # authorized_keys, .env and GPU settings for this computer
+#   docker compose up -d --build
+#   docker compose ps          # shows (healthy) once the model is loaded
+services:
+  lysoquant:
+    build:
+      context: ..
+      dockerfile: docker-ssh/Dockerfile
+      args:     # CUDA image by default; ./setup.sh selects the CPU image without an NVIDIA GPU
+        PYTORCH_IMAGE: ${LYSOQUANT_BASE_IMAGE:-pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime}
+        TORCH_INDEX: ${LYSOQUANT_TORCH_INDEX:-}
+    image: lysoquant-server-ssh
+    restart: unless-stopped
+    labels:
+      autoheal: "true"        # restarted by the autoheal service when unhealthy
+    ports:
+      - "${LYSOQUANT_SSH_PORT:-2222}:${LYSOQUANT_SSH_PORT:-2222}"
+    environment:
+      LYSOQUANT_AUTHORIZED_KEYS: ${LYSOQUANT_AUTHORIZED_KEYS:-}     # optional, in addition to the file
+      LYSOQUANT_SSH_PORT: ${LYSOQUANT_SSH_PORT:-2222}
+      LYSOQUANT_GPU: ${LYSOQUANT_GPU:-all}
+      LYSOQUANT_TILE_SIZE: ${LYSOQUANT_TILE_SIZE:-900}
+      LYSOQUANT_TILES_PER_GPU: ${LYSOQUANT_TILES_PER_GPU:-1}
+      LYSOQUANT_JOB_TIMEOUT: ${LYSOQUANT_JOB_TIMEOUT:-3600}
+      LYSOQUANT_KEEP_HOURS: ${LYSOQUANT_KEEP_HOURS:-24}
+    volumes:
+      # Public keys allowed to connect, one per line (./setup.sh creates it).
+      # Edits apply at the next login. On SELinux hosts use :ro,z
+      - ${LYSOQUANT_AUTHORIZED_KEYS_FILE:-./authorized_keys}:/authorized_keys:ro
+      - jobs:/jobs                    # only reachable through SFTP
+      - hostkeys:/etc/lysoquant/hostkeys   # keeps the SSH host identity across rebuilds
+    healthcheck:
+      test: ["CMD", "bash", "-c", "lysoquant-health && grep -qiE \":$$(printf '%04X' $${LYSOQUANT_SSH_PORT}) [0-9A-F:]+ 0A \" /proc/net/tcp /proc/net/tcp6"]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 3
+    # Finish the running jobs before stopping
+    stop_grace_period: 2m
+    # The NVIDIA GPU reservation is in compose.override.yaml, which ./setup.sh
+    # creates (from compose.nvidia.yaml) on hosts with an NVIDIA GPU
+
+  # Restarts containers labelled autoheal=true when they become unhealthy
+  # (Docker itself only restarts containers that exit). Needs the Docker
+  # socket, i.e. root access to the host: remove it if that is not acceptable.
+  autoheal:
+    image: willfarrell/autoheal:1.2.0
+    restart: unless-stopped
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: autoheal
+      AUTOHEAL_INTERVAL: 30
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  jobs:
+  hostkeys:

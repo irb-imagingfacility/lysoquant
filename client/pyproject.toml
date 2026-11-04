@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lysoquant-client"
+version = "2.0.0"
+description = "Python client of the LysoQuant segmentation server: segment images without Fiji"
+readme = "README.md"
+license = { text = "GPL-3.0" }
+authors = [{ name = "Diego Morone" }]
+requires-python = ">=3.9"
+dependencies = ["numpy", "tifffile", "paramiko"]
+
+[project.scripts]
+lysoquant-segment = "lysoquant_client.cli:main"
+
+[tool.setuptools]
+packages = ["lysoquant_client"]

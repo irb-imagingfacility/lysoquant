@@ -1,0 +1,8 @@
+*
+!server/pyproject.toml
+!server/README.md
+!server/lysoquant_server
+!model/lysoquant-7-16.pt
+!docker-ssh/sshd_config
+!docker-ssh/entrypoint.sh
+**/__pycache__

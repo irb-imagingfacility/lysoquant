@@ -1,0 +1,12 @@
+# GPU access for the container on hosts with an NVIDIA GPU and the NVIDIA
+# Container Toolkit. ./setup.sh copies this file to compose.override.yaml, which
+# docker compose merges automatically; without an NVIDIA GPU it removes it.
+services:
+  lysoquant:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

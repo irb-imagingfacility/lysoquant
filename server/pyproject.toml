@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lysoquant-server"
+version = "2.0.0"
+description = "PyTorch segmentation server for the LysoQuant Fiji plugin"
+readme = "README.md"
+license = { text = "GPL-3.0" }
+authors = [{ name = "Diego Morone" }]
+requires-python = ">=3.9"
+dependencies = ["torch>=2.0", "numpy", "tifffile"]
+
+[project.optional-dependencies]
+# Only needed once, to convert the original caffe_unet weights
+convert = ["h5py"]
+
+[project.scripts]
+lysoquant-predict = "lysoquant_server.predict:main"
+lysoquant-convert = "lysoquant_server.convert:main"
+lysoquant-serve = "lysoquant_server.serve:main"
+lysoquant-health = "lysoquant_server.health:main"
+
+[tool.setuptools]
+packages = ["lysoquant_server"]

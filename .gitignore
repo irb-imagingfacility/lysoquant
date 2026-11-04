@@ -1,2 +1,9 @@
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+*.egg-info
+.key
+.env
 target/*
 target

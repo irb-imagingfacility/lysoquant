@@ -2,19 +2,15 @@
 
 This is the binary of the LysoQuant plugin for Fiji.
 
-This plugin requires the [U-Net Segmentation](https://github.com/lmb-freiburg/Unet-Segmentation) plugin and a connection to a Linux workstation (can be the local computer) running a special variant of caffe (caffe_unet).
-
-The weight file for the U-Net network can be found in the releases
+This plugin requires a connection to a workstation (can be the local computer) running the
+LysoQuant PyTorch segmentation server (see [server/README.md](../server/README.md)).
+No other Fiji plugin is required.
 
 ## Installation
 
-1. Download the latest release.
-1. Set up a workstation with a compiled version of caffe_unet (can be a docker file, as specified in the U-Net README).
-1. Add the U-Net segmentation plugin to Fiji, through the update site.
-1. Add LysoQuant plugin to Fiji, either through the update site or by placing the .jar file in this folder at {Fiji.app}/plugins
-1. Place the weight file on the workstation and the modelfile on the computer where Fiji is installed
-1. Open the testRGB.tif image and run the Detection task in the U-Net segmentation plugin. Set the parameters accordingly
-1. On Imagej, Edit>Options>LysoQuant Settings... to configure LysoQuant
+1. Set up the server on a workstation with a GPU and convert the model weights, as described in `server/README.md`.
+1. Add LysoQuant plugin to Fiji, either through the update site or by placing the .jar file at {Fiji.app}/plugins
+1. On ImageJ, Edit>Options>LysoQuant Settings... to configure the connection to the server, and check it with "Test connection" (the tile size is set on the server, see `server/README.md`). "Hide the segmentation image (LQ_)" there skips opening the segmentation window: the measurements are made as usual.
 
 ## Usage
 
