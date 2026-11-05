@@ -117,10 +117,10 @@ public class LysoQuantSettings implements PlugIn {
         gd.addStringField("Username: ", username, 50);
         gd.addStringField("SSH key (empty for password): ", key, 50);
         addTestConnection(gd);
-        gd.addStringField("Process folder on server (filled by the test): ", processfolder, 50);
+        gd.addStringField("Process folder on server: ", processfolder, 50);
         gd.addStringField("Filter min size: ", minsize);
         gd.addCheckbox("Display 3D warning", display_warning);
-        gd.addCheckbox("Hide the segmentation image (LQ_)", hide_segmentation);
+        gd.addCheckbox("Hide the segmentation image (LQ)", hide_segmentation);
 
 		gd.showDialog();
 		if (gd.wasCanceled())
