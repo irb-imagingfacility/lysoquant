@@ -115,7 +115,7 @@ public class LysoQuantSettings implements PlugIn {
         gd.addStringField("Server: ", server, 50);
         gd.addStringField("Server port: ", port, 10);
         gd.addStringField("Username: ", username, 50);
-        gd.addStringField("SSH key (empty for password): ", key, 50);
+        gd.addFileField("SSH key (empty for password): ", key, 50);
         addTestConnection(gd);
         gd.addStringField("Process folder on server: ", processfolder, 50);
         gd.addStringField("Filter min size: ", minsize);
