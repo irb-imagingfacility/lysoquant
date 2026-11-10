@@ -39,7 +39,12 @@ services:
     stop_grace_period: 2m
     # The NVIDIA GPU reservation is in compose.override.yaml, which ./setup.sh
     # creates (from compose.nvidia.yaml) on hosts with an NVIDIA GPU
-
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: '2G'
+          
   # Restarts containers labelled autoheal=true when they become unhealthy
   # (Docker itself only restarts containers that exit). Needs the Docker
   # socket, i.e. root access to the host: remove it if that is not acceptable.
@@ -51,6 +56,11 @@ services:
       AUTOHEAL_INTERVAL: 30
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: '128M'
 
 volumes:
   jobs:
