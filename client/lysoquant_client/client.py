@@ -9,6 +9,7 @@ stops at once and deletes the folder.
 
 import io
 import json
+import math
 import os
 import time
 import uuid
@@ -21,6 +22,7 @@ from .connection import Connection, LocalConnection, SFTPConnection
 
 HEARTBEAT = ".lysoquant-heartbeat.json"
 DEFAULT_FOLDERS = ("/jobs", "LysoQuant/jobs")       # where the server is looked for (relative to the SSH login)
+MODEL_PIXEL_SIZE_UM = 0.025                         # pixel size of the model: images are rescaled to it here, not on the server
 POLL_S = 1.0
 HEARTBEAT_WAIT_S = 5.0
 
@@ -31,7 +33,7 @@ class LysoQuantError(RuntimeError):
 
 class Segmentation(NamedTuple):
     labels: np.ndarray                  # uint16 (y, x), or (n, y, x) for a stack: 0 background, 1 empty, 2 loaded
-    pixel_size_um: "tuple[float, float]"  # (y, x) of the labels: the server rescales the image to its model
+    pixel_size_um: "tuple[float, float]"  # (y, x) of the labels: the image is rescaled to the pixel size of the model
 
 
 def make_rgb(protein, lysosome, protein_range=None, lysosome_range=None):
@@ -52,6 +54,38 @@ def make_rgb(protein, lysosome, protein_range=None, lysosome_range=None):
         scaled = (channel.astype(np.float64) - lo) / max(float(hi - lo), 1e-12)
         rgb[..., i] = np.round(np.clip(scaled, 0, 1) * 255)
     return rgb
+
+
+def _interp_indices(n_in, n_out, scale):
+    pos = np.arange(n_out) / scale
+    lower = np.floor(pos).astype(np.int64)
+    upper = lower + 1
+    upper = np.where(upper < n_in, upper, 2 * (n_in - 1) - upper)
+    return np.minimum(lower, n_in - 1), np.maximum(upper, 0), pos - lower
+
+
+def rescale_rgb(rgb, pixel_size_um, target_um=MODEL_PIXEL_SIZE_UM):
+    """Bilinear rescaling of an RGB image (y, x, 3), or a stack (n, y, x, 3), to the pixel size target_um.
+
+    Pixel i of the result is at i / scale in the image and the neighbour beyond the last
+    pixel is mirrored, as the Fiji plugin and the server do. The result is uint8.
+    """
+    scale_y, scale_x = pixel_size_um[0] / target_um, pixel_size_um[1] / target_um
+    if scale_y == 1 and scale_x == 1:
+        return rgb
+    h, w = rgb.shape[-3:-1]
+    h_out, w_out = int(math.floor(h * scale_y + 0.5)), int(math.floor(w * scale_x + 0.5))
+    yl, yu, dy = _interp_indices(h, h_out, scale_y)
+    xl, xu, dx = _interp_indices(w, w_out, scale_x)
+    dy = dy[:, None, None]
+    dx = dx[None, :, None]
+    out = np.empty(rgb.shape[:-3] + (h_out, w_out, 3), np.uint8)
+    for i in np.ndindex(*rgb.shape[:-3]):       # one image at a time: bounded memory
+        f = rgb[i].astype(np.float64)
+        top = f[yl[:, None], xl] * (1 - dx) + f[yl[:, None], xu] * dx
+        bottom = f[yu[:, None], xl] * (1 - dx) + f[yu[:, None], xu] * dx
+        out[i] = np.round(top * (1 - dy) + bottom * dy)
+    return out
 
 
 def _connect(host, port, username, key_file, password, local):
@@ -144,7 +178,8 @@ def segment(
     """Segment the lysosomes of an RGB image (protein in red, lysosomes in green) on the server.
 
     rgb:           uint8 array (y, x, 3), or a stack (n, y, x, 3) of independent images, e.g. from make_rgb()
-    pixel_size_um: size of a pixel in microns: one number, or (y, x); the server rescales to its model
+    pixel_size_um: size of a pixel in microns: one number, or (y, x); the image is
+                   rescaled to the model pixel size (0.025 um) here, so that the server does not have to
     host, port, username, key_file: the SSH server; key_file is the private key (no passphrase
                    asked). password is the alternative to a key. Without host, or with local=True,
                    the server is on this computer.
@@ -161,7 +196,10 @@ def segment(
     if np.ndim(pixel_size_um) == 0:
         pixel_size_um = (pixel_size_um, pixel_size_um)
     size_y, size_x = (float(v) for v in pixel_size_um)
-    params = json.dumps({"element_size_um": [size_y, size_x]}, indent=2).encode("utf-8") + b"\n"
+    if not (size_y > 0 and size_x > 0):
+        raise ValueError("pixel_size_um must be positive")
+    rgb = rescale_rgb(rgb, (size_y, size_x))
+    params = json.dumps({"element_size_um": [MODEL_PIXEL_SIZE_UM] * 2}, indent=2).encode("utf-8") + b"\n"
     input_tiff = _tiff_bytes(rgb, photometric="rgb")
 
     with _connect(host, port, username, key_file, password, local) as connection:

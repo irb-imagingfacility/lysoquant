@@ -35,9 +35,11 @@
 package ch.irb.lysoquant;
 
 import ij.ImagePlus;
+import ij.ImageStack;
 import ij.io.FileSaver;
 import ij.io.Opener;
 import ij.measure.Calibration;
+import ij.process.ColorProcessor;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -61,12 +63,20 @@ import java.util.UUID;
  */
 public class Blob {
 
+    /** Pixel size of the model in microns: the image is rescaled to it here, so the server does not have to */
+    public static final double MODEL_PIXEL_SIZE_UM = 0.025;
+
     private final String id;
     private final ImagePlus input;
+    private final ImagePlus rescaled;
 
+    /**
+     * @param input RGB image, rescaled to the model pixel size (what is sent to the server)
+     */
     public Blob(ImagePlus input) {
         this.id = "lysoquant-" + UUID.randomUUID().toString();
         this.input = input;
+        this.rescaled = rescale(input);
     }
 
     /**
@@ -79,19 +89,20 @@ public class Blob {
     }
 
     /**
-     * Input image as TIFF. Z-slices and frames are flattened, each one is segmented independently.
+     * Input image as TIFF, at the model pixel size. Z-slices and frames are flattened, each one is segmented independently.
      */
     public byte[] inputTiff() throws IOException {
-        byte[] tiff = new FileSaver(input).serialize();
+        byte[] tiff = new FileSaver(rescaled).serialize();
         if (tiff == null) throw new IOException("Cannot serialize image "+input.getTitle());
         return tiff;
     }
 
     /**
-     * Segmentation parameters as JSON (the tile size is a server setting)
+     * Segmentation parameters as JSON (the tile size is a server setting). The image
+     * sent is already at the model pixel size, so the server has nothing to rescale.
      */
     public byte[] paramsJson() {
-        double[] el = getElementSizeUm(input);
+        double[] el = getElementSizeUm(rescaled);
         String json = String.format(Locale.ROOT,
             "{\n  \"element_size_um\": [%s, %s]\n}\n",
             Double.toString(el[0]), Double.toString(el[1]));
@@ -116,6 +127,73 @@ public class Blob {
         out.setTitle(input.getTitle() + " - data (segmentation)");
         out.resetDisplayRange();
         return out;
+    }
+
+    /**
+     * Bilinear rescaling of an RGB image to the model pixel size, slice by slice, as the
+     * server did (and the U-Net plugin before it): pixel i of the result is at i / scale in
+     * the input, the neighbour beyond the last pixel is mirrored. The result is 8-bit RGB.
+     * An image already at the model pixel size, or with no calibration, is returned as is.
+     */
+    static ImagePlus rescale(ImagePlus rgb) {
+        double[] el = getElementSizeUm(rgb);
+        double scaleY = el[0] / MODEL_PIXEL_SIZE_UM;
+        double scaleX = el[1] / MODEL_PIXEL_SIZE_UM;
+        if (scaleY == 1 && scaleX == 1) return rgb;
+        if (!(scaleY > 0 && scaleX > 0) || Double.isInfinite(scaleY) || Double.isInfinite(scaleX)) return rgb;
+
+        int w = rgb.getWidth(), h = rgb.getHeight();
+        int wOut = (int) Math.floor(w * scaleX + 0.5), hOut = (int) Math.floor(h * scaleY + 0.5);
+        int[] xl = new int[wOut], xu = new int[wOut], yl = new int[hOut], yu = new int[hOut];
+        float[] dx = new float[wOut], dy = new float[hOut];
+        interpolation(w, scaleX, xl, xu, dx);
+        interpolation(h, scaleY, yl, yu, dy);
+
+        ImageStack stack = rgb.getStack();
+        ImageStack out = new ImageStack(wOut, hOut);
+        for (int i = 1; i <= stack.getSize(); i++) {
+            int[] in = (int[]) stack.getProcessor(i).convertToRGB().getPixels();
+            int[] pixels = new int[wOut * hOut];
+            for (int y = 0; y < hOut; y++) {
+                int rowLow = yl[y] * w, rowUp = yu[y] * w;
+                float fy = dy[y];
+                for (int x = 0; x < wOut; x++) {
+                    float fx = dx[x];
+                    int p00 = in[rowLow + xl[x]], p01 = in[rowLow + xu[x]];
+                    int p10 = in[rowUp + xl[x]], p11 = in[rowUp + xu[x]];
+                    int value = 0;
+                    for (int shift = 16; shift >= 0; shift -= 8) {
+                        double top = ((p00 >> shift) & 255) * (1 - fx) + ((p01 >> shift) & 255) * fx;
+                        double bottom = ((p10 >> shift) & 255) * (1 - fx) + ((p11 >> shift) & 255) * fx;
+                        value |= (int) Math.round(top * (1 - fy) + bottom * fy) << shift;
+                    }
+                    pixels[y * wOut + x] = value;
+                }
+            }
+            out.addSlice(stack.getSliceLabel(i), new ColorProcessor(wOut, hOut, pixels));
+        }
+
+        ImagePlus result = new ImagePlus(rgb.getTitle(), out);
+        result.setDimensions(rgb.getNChannels(), rgb.getNSlices(), rgb.getNFrames());
+        Calibration cal = rgb.getCalibration().copy();
+        cal.setUnit("um");
+        cal.pixelWidth = MODEL_PIXEL_SIZE_UM;
+        cal.pixelHeight = MODEL_PIXEL_SIZE_UM;
+        result.setCalibration(cal);
+        return result;
+    }
+
+    /** Lower and upper input neighbours of each output pixel along one axis, and the weight of the upper one */
+    private static void interpolation(int nIn, double scale, int[] lower, int[] upper, float[] weight) {
+        for (int i = 0; i < lower.length; i++) {
+            double pos = i / scale;
+            int low = (int) Math.floor(pos);
+            int up = low + 1;
+            if (up >= nIn) up = 2 * (nIn - 1) - up;     // mirrored
+            lower[i] = Math.min(low, nIn - 1);
+            upper[i] = Math.max(up, 0);
+            weight[i] = (float) (pos - low);
+        }
     }
 
     /**

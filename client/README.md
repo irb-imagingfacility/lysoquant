@@ -26,8 +26,9 @@ result.pixel_size_um                         # (y, x) of the labels
 ```
 
 - `segment(rgb, pixel_size_um, ...)`: `rgb` is uint8 `(y, x, 3)`, or a stack `(n, y, x, 3)` of independent
-  images, with the protein in red and the lysosomes in green. The server rescales the image to the pixel
-  size of its model, so **the labels are larger or smaller than the image**; `result.pixel_size_um` is theirs.
+  images, with the protein in red and the lysosomes in green. The client rescales the image to the pixel
+  size of the model (0.025 um) before sending it, so **the labels are larger or smaller than the image**;
+  `result.pixel_size_um` is theirs. Rescaling also multiplies the data sent (16 times for 0.1 um images).
 - `make_rgb(protein, lysosome)` scales each channel to 8 bit between its minimum and maximum, as
   Fiji does with the display range. For the same input as Fiji give the display range you use there:
   `protein_range=(min, max)`, `lysosome_range=(min, max)`.

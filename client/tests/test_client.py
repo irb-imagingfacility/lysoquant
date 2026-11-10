@@ -18,7 +18,7 @@ from lysoquant_client import LysoQuantError, check_server, client, make_rgb, seg
 
 
 class FakeServer:
-    """Writes the heartbeat and answers every job: labels of twice the size of the input"""
+    """Writes the heartbeat and answers every job: labels of the size of the input, which is at the model pixel size"""
 
     def __init__(self, folder, fail=False, hang=False):
         self.folder, self.fail, self.hang = folder, fail, hang
@@ -64,9 +64,10 @@ class FakeServer:
         image = tifffile.imread(job + "/input.tif")
         with open(job + "/progress.txt", "w") as f:
             f.write("1 1\n")
-        h, w = image.shape[-3] * 2, image.shape[-2] * 2
+        h, w = image.shape[-3], image.shape[-2]
+        self.params = params
         labels = np.full(((image.shape[0],) if image.ndim == 4 else ()) + (h, w), 2, np.uint16)
-        el = params["element_size_um"][0] / 2
+        el = params["element_size_um"][0]
         tifffile.imwrite(job + "/output.tif", labels, imagej=True, resolution=(1 / el, 1 / el),
                          metadata={"unit": "um"})
         with open(job + "/done.txt", "w") as f:
@@ -91,15 +92,20 @@ class ClientTest(unittest.TestCase):
         steps = []
         with FakeServer(self.folder):
             result = segment(rgb, 0.1, local=True, folder=self.folder, progress=lambda d, t: steps.append((d, t)))
-        self.assertEqual(result.labels.shape, (40, 60))
+        self.assertEqual(result.labels.shape, (80, 120))        # 0.1 um -> 0.025 um: 4 times as many pixels
         self.assertEqual(result.labels.dtype, np.uint16)
-        self.assertAlmostEqual(result.pixel_size_um[0], 0.05, places=3)
+        self.assertAlmostEqual(result.pixel_size_um[0], 0.025, places=3)
         self.assertEqual(self.jobs_left(), [])
 
     def test_stack_and_pixel_size_pair(self):
         with FakeServer(self.folder):
             result = segment(np.zeros((3, 8, 8, 3), np.uint8), (0.2, 0.2), local=True, folder=self.folder)
-        self.assertEqual(result.labels.shape, (3, 16, 16))
+        self.assertEqual(result.labels.shape, (3, 64, 64))
+
+    def test_server_gets_the_image_at_the_model_pixel_size(self):
+        with FakeServer(self.folder) as server:
+            segment(np.zeros((10, 20, 3), np.uint8), (0.05, 0.1), local=True, folder=self.folder)
+        self.assertEqual(server.params, {"element_size_um": [0.025, 0.025]})
 
     def test_finds_the_process_folder(self):
         with FakeServer(self.folder):
@@ -143,6 +149,24 @@ class ClientTest(unittest.TestCase):
             segment(np.zeros((8, 8), np.uint8), 0.1, local=True, folder=self.folder)
         with self.assertRaises(ValueError):
             segment(np.zeros((8, 8, 3), np.float32), 0.1, local=True, folder=self.folder)
+
+
+class RescaleTest(unittest.TestCase):
+
+    def test_upsampling_is_bilinear_with_mirrored_edge(self):
+        rgb = np.zeros((1, 2, 3), np.uint8)
+        rgb[0, :, 0] = [0, 100]
+        out = client.rescale_rgb(rgb, (0.05, 0.05))      # twice the pixels
+        self.assertEqual(out.shape, (2, 4, 3))
+        self.assertEqual(out[0, :, 0].tolist(), [0, 50, 100, 50])   # beyond the last pixel: mirrored
+        self.assertEqual(out[1].tolist(), out[0].tolist())
+
+    def test_stack_and_no_change_at_model_size(self):
+        stack = np.random.default_rng(0).integers(0, 256, (2, 5, 6, 3), dtype=np.uint8)
+        self.assertIs(client.rescale_rgb(stack, (0.025, 0.025)), stack)
+        out = client.rescale_rgb(stack, (0.05, 0.075))
+        self.assertEqual(out.shape, (2, 10, 18, 3))
+        self.assertEqual(out[1].tolist(), client.rescale_rgb(stack[1], (0.05, 0.075)).tolist())
 
 
 class MakeRgbTest(unittest.TestCase):

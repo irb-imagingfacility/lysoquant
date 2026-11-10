@@ -1,0 +1,7 @@
+<factorypath>
+    <factorypathentry kind="VARJAR" id="M2_REPO/net/imagej/ij/1.54p/ij-1.54p.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/com/jcraft/jsch/0.1.55/jsch-0.1.55.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/scijava/scijava-common/2.77.0/scijava-common-2.77.0.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/scijava/parsington/1.0.4/parsington-1.0.4.jar" enabled="true" runInBatchMode="false"/>
+    <factorypathentry kind="VARJAR" id="M2_REPO/org/bushe/eventbus/1.4/eventbus-1.4.jar" enabled="true" runInBatchMode="false"/>
+</factorypath>

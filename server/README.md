@@ -6,7 +6,10 @@ the U-Net Segmentation plugin; the Fiji side only needs the LysoQuant plugin.
 The network is a one-to-one port of the original caffe_unet model, and the
 pre-processing (bilinear rescaling to the model pixel size, min/max
 normalization, mirror-padded tiling) replicates the U-Net plugin, so
-segmentations match the Caffe backend.
+segmentations match the Caffe backend. The Fiji plugin does the rescaling
+itself (to 0.025 µm) before sending the image, as does the Python client, to
+spare the server's CPU and GPU; the server still rescales images sent at
+another pixel size (e.g. by an older client).
 
 ## Deployments
 
@@ -118,8 +121,8 @@ A single job folder can also be segmented by hand with `lysoquant-predict --weig
 
 For each image the plugin checks the server heartbeat, creates the private
 folder `<process folder>/lysoquant-<uuid>/` and writes `params.json`
-(`element_size_um`) and `input.tif` (RGB: protein red,
-lysosomes green), each as `.part` then renamed so that it appears complete.
+(`element_size_um`, 0.025 from the clients: the image is already at the model
+pixel size) and `input.tif` (RGB: protein red, lysosomes green), each as `.part` then renamed so that it appears complete.
 The server picks the job up once `input.tif` exists, keeps `progress.txt`
 (`<tiles done> <tiles in total>`) up to date for the plugin's progress bar and
 writes `output.tif`
